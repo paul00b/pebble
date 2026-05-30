@@ -8,7 +8,8 @@ export type GameId =
   | "bombparty"
   | "petitbac"
   | "sixquiprend"
-  | "codenames";
+  | "codenames"
+  | "skyjo";
 
 /** High-level phase of a room. */
 export type RoomPhase = "lobby" | "playing" | "results";
@@ -104,6 +105,15 @@ export const GAMES: GameMeta[] = [
     minPlayers: 4,
     maxPlayers: 8,
     duration: "15–25 min",
+  },
+  {
+    id: "skyjo",
+    name: "Skyjo",
+    tagline: "Swap and flip to keep your grid as low as possible.",
+    emoji: "🃏",
+    minPlayers: 2,
+    maxPlayers: 8,
+    duration: "10–15 min",
   },
 ];
 

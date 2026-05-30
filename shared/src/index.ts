@@ -38,6 +38,10 @@ export type {
   CodenamesMember,
   CodenamesView,
   CodenamesAction,
+  SkyjoCell,
+  SkyjoPlayerPublic,
+  SkyjoView,
+  SkyjoAction,
   GameView,
   GameAction,
 } from "./games";

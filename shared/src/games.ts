@@ -179,15 +179,55 @@ export type CodenamesAction =
   | { type: "guess"; index: number }
   | { type: "endTurn" };
 
+/* ── Skyjo ───────────────────────────────────────────────────────────────── */
+
+/** A grid slot: null = cleared column, else face-down (value hidden) or up. */
+export type SkyjoCell = null | { up: boolean; value: number | null };
+
+export interface SkyjoPlayerPublic {
+  id: string;
+  grid: SkyjoCell[];
+  /** Sum of currently face-up cards (live, visible score). */
+  score: number;
+  /** Whether this player's grid is fully revealed (round-ender). */
+  complete: boolean;
+}
+
+export interface SkyjoView {
+  kind: "skyjo";
+  phase: "flip2" | "turn" | "done";
+  players: SkyjoPlayerPublic[];
+  currentId: string;
+  /** Current player's sub-stage: pick a source, or resolve a drawn card. */
+  stage: "await" | "resolveDraw";
+  /** The drawn card awaiting placement (visible to all), or null. */
+  held: number | null;
+  discardTop: number | null;
+  deckCount: number;
+  closerId?: string | null;
+  finalScores?: Record<string, number>;
+  over: boolean;
+  winnerId?: string | null;
+}
+
+export type SkyjoAction =
+  | { type: "flip"; index: number }
+  | { type: "drawDeck" }
+  | { type: "takeDiscard"; index: number }
+  | { type: "keepReplace"; index: number }
+  | { type: "discardFlip"; index: number };
+
 /* ── Unions ──────────────────────────────────────────────────────────────── */
 
 export type GameView =
   | BombPartyView
   | PetitBacView
   | SixQuiPrendView
-  | CodenamesView;
+  | CodenamesView
+  | SkyjoView;
 export type GameAction =
   | BombPartyAction
   | PetitBacAction
   | SixQuiPrendAction
-  | CodenamesAction;
+  | CodenamesAction
+  | SkyjoAction;
