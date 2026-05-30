@@ -138,6 +138,18 @@ io.on("connection", (socket) => {
     if (roomCode && sessionId) manager.gameAction(roomCode, sessionId, action);
   });
 
+  socket.on("draw:op", (op) => {
+    const { roomCode, sessionId } = socket.data;
+    if (roomCode && sessionId && manager.drawOp(roomCode, sessionId, op)) {
+      socket.to(roomCode).emit("draw:op", op);
+    }
+  });
+
+  socket.on("draw:request", () => {
+    const { roomCode } = socket.data;
+    if (roomCode) socket.emit("draw:sync", manager.drawOps(roomCode));
+  });
+
   socket.on("room:kick", (targetId) => {
     const { roomCode, sessionId } = socket.data;
     if (roomCode && sessionId) manager.kick(roomCode, sessionId, targetId);

@@ -1,0 +1,198 @@
+// Gartic — one player draws a secret word while everyone races to guess it in
+// the chat. Faster guesses score more; the drawer earns a bonus per correct
+// guesser. Drawing pixels travel on a separate real-time channel (draw ops),
+// kept out of the heavy room snapshot.
+
+import type { Player } from "../../../shared/src/types.js";
+import type {
+  DrawOp,
+  GameAction,
+  GarticAction,
+  GarticMessage,
+  GarticView,
+} from "../../../shared/src/games.js";
+import type { ActionContext, GameEngine, InitOptions } from "./engine.js";
+import { normalize } from "./dictionary.js";
+import { randomWord } from "./garticWords.js";
+
+const DRAW_MS = 80_000;
+const DRAWER_BONUS = 20;
+const MAX_OPS = 6000;
+const MAX_MESSAGES = 40;
+
+interface GarticState {
+  language: InitOptions["language"];
+  order: string[];
+  phase: "drawing" | "reveal" | "done";
+  drawerIndex: number;
+  round: number;
+  totalRounds: number;
+  word: string;
+  deadline: number;
+  scores: Record<string, number>;
+  guessed: Set<string>;
+  messages: GarticMessage[];
+  ops: DrawOp[];
+  over: boolean;
+  winnerId: string | null;
+}
+
+let msgSeq = 0;
+
+const drawerId = (s: GarticState) => s.order[s.drawerIndex % s.order.length];
+const mask = (word: string) => word.replace(/[^\s]/g, "_");
+
+function nonDrawers(s: GarticState): string[] {
+  const d = drawerId(s);
+  return s.order.filter((id) => id !== d);
+}
+
+function beginRound(s: GarticState, now: number) {
+  s.word = randomWord(s.language);
+  s.deadline = now + DRAW_MS;
+  s.guessed = new Set();
+  s.messages = [];
+  s.ops = [];
+  s.phase = "drawing";
+}
+
+export const gartic: GameEngine<GarticState> = {
+  init(players: Player[], now: number, opts: InitOptions): GarticState {
+    const order = players.map((p) => p.id);
+    const scores: Record<string, number> = {};
+    for (const id of order) scores[id] = 0;
+    const s: GarticState = {
+      language: opts.language,
+      order,
+      phase: "drawing",
+      drawerIndex: 0,
+      round: 1,
+      totalRounds: order.length, // one lap: everyone draws once
+      word: "",
+      deadline: 0,
+      scores,
+      guessed: new Set(),
+      messages: [],
+      ops: [],
+      over: false,
+      winnerId: null,
+    };
+    beginRound(s, now);
+    return s;
+  },
+
+  action(state, pid, action: GameAction, ctx: ActionContext): boolean {
+    if (state.over) return false;
+    const a = action as GarticAction;
+
+    if (a.type === "guess") {
+      if (state.phase !== "drawing") return false;
+      if (pid === drawerId(state) || state.guessed.has(pid)) return false;
+      const text = String(a.text).trim().slice(0, 60);
+      if (!text) return false;
+
+      const correct = normalize(text) === normalize(state.word);
+      if (correct) {
+        state.guessed.add(pid);
+        const left = Math.max(0, state.deadline - ctx.now);
+        const pts = Math.max(10, Math.round((left / DRAW_MS) * 100));
+        state.scores[pid] = (state.scores[pid] ?? 0) + pts;
+        state.scores[drawerId(state)] = (state.scores[drawerId(state)] ?? 0) + DRAWER_BONUS;
+        push(state, { playerId: pid, text: "", correct: true });
+        // Everyone (besides the drawer) has it → end early.
+        if (nonDrawers(state).every((id) => state.guessed.has(id))) state.phase = "reveal";
+      } else {
+        push(state, { playerId: pid, text, correct: false });
+      }
+      return true;
+    }
+
+    if (a.type === "next") {
+      if (state.phase !== "reveal" || !ctx.isHost) return false;
+      if (state.round >= state.totalRounds) {
+        state.phase = "done";
+        state.over = true;
+        state.winnerId =
+          [...state.order].sort((x, y) => (state.scores[y] ?? 0) - (state.scores[x] ?? 0))[0] ?? null;
+      } else {
+        state.round += 1;
+        state.drawerIndex = (state.drawerIndex + 1) % state.order.length;
+        beginRound(state, ctx.now);
+      }
+      return true;
+    }
+    return false;
+  },
+
+  tick(state, now): boolean {
+    if (state.over) return false;
+    if (state.phase === "drawing" && now >= state.deadline) {
+      state.phase = "reveal";
+      return true;
+    }
+    return false;
+  },
+
+  onLeave(state, pid): boolean {
+    const i = state.order.indexOf(pid);
+    if (i < 0) return false;
+    const wasDrawer = pid === drawerId(state);
+    state.order.splice(i, 1);
+    state.guessed.delete(pid);
+    if (i < state.drawerIndex) state.drawerIndex -= 1;
+    if (state.order.length === 0) {
+      state.over = true;
+      state.phase = "done";
+      return true;
+    }
+    state.drawerIndex %= state.order.length;
+    // If the drawer bailed mid-round, jump to the reveal so the host can move on.
+    if (wasDrawer && state.phase === "drawing") state.phase = "reveal";
+    return true;
+  },
+
+  isOver: (state) => state.over,
+
+  // Drawing side-channel (kept out of the broadcast view).
+  drawOps: (state) => state.ops,
+  applyDrawOp(state, pid, op: DrawOp): boolean {
+    if (state.phase !== "drawing" || pid !== drawerId(state)) return false;
+    if (op.t === "clear") state.ops = [];
+    else if (state.ops.length < MAX_OPS) state.ops.push(op);
+    return true;
+  },
+
+  view: (state) => garticView(state, null),
+  playerView: (state, pid) => garticView(state, pid),
+};
+
+function push(state: GarticState, m: Omit<GarticMessage, "id" | "name">) {
+  state.messages.push({ id: `m${msgSeq++}`, name: "", ...m });
+  if (state.messages.length > MAX_MESSAGES)
+    state.messages.splice(0, state.messages.length - MAX_MESSAGES);
+}
+
+function garticView(state: GarticState, viewer: string | null): GarticView {
+  const d = drawerId(state);
+  const showWord = viewer === d || state.phase !== "drawing";
+  return {
+    kind: "gartic",
+    phase: state.phase,
+    drawerId: d,
+    round: state.round,
+    totalRounds: state.totalRounds,
+    deadline: state.deadline,
+    word: showWord ? state.word : mask(state.word),
+    wordMasked: !showWord,
+    players: state.order.map((id) => ({
+      id,
+      score: state.scores[id] ?? 0,
+      guessed: state.guessed.has(id),
+    })),
+    messages: state.messages,
+    youAreDrawer: viewer === d,
+    youGuessed: viewer ? state.guessed.has(viewer) : false,
+    over: state.over,
+    winnerId: state.winnerId,
+  };
+}

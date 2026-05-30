@@ -8,6 +8,7 @@ import type { GameEngine } from "./games/engine.js";
 import {
   gameById,
   type ChatMessage,
+  type DrawOp,
   type GameAction,
   type GameId,
   type Language,
@@ -276,6 +277,21 @@ export class RoomManager {
     room.gameState = undefined;
     room.phase = "lobby";
     this.touch(room);
+  }
+
+  /** Apply a drawing op (Gartic). Returns true if accepted → relay it. */
+  drawOp(code: string, sessionId: string, op: DrawOp): boolean {
+    const room = this.rooms.get(code);
+    if (!room?.engine?.applyDrawOp || room.gameState === undefined || room.phase !== "playing")
+      return false;
+    return room.engine.applyDrawOp(room.gameState, sessionId, op);
+  }
+
+  /** Current drawing ops for a room (for syncing a late/reconnecting viewer). */
+  drawOps(code: string): DrawOp[] {
+    const room = this.rooms.get(code);
+    if (!room?.engine?.drawOps || room.gameState === undefined) return [];
+    return room.engine.drawOps(room.gameState);
   }
 
   /** Drive every active game's time-based state. Called on a fixed interval. */

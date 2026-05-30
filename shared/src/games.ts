@@ -217,6 +217,53 @@ export type SkyjoAction =
   | { type: "keepReplace"; index: number }
   | { type: "discardFlip"; index: number };
 
+/* ── Gartic (draw & guess) ───────────────────────────────────────────────── */
+
+export type GarticPhase = "drawing" | "reveal" | "done";
+
+export interface GarticPlayerScore {
+  id: string;
+  score: number;
+  guessed: boolean;
+}
+
+export interface GarticMessage {
+  id: string;
+  playerId: string;
+  name: string;
+  text: string;
+  /** True if this was a correct guess (text is hidden from others). */
+  correct: boolean;
+}
+
+export interface GarticView {
+  kind: "gartic";
+  phase: GarticPhase;
+  drawerId: string;
+  round: number;
+  totalRounds: number;
+  /** Drawing-phase deadline (epoch ms). */
+  deadline: number;
+  /** Full word for the drawer & during reveal; otherwise a masked pattern. */
+  word: string;
+  wordMasked: boolean;
+  players: GarticPlayerScore[];
+  messages: GarticMessage[];
+  youAreDrawer: boolean;
+  youGuessed: boolean;
+  over: boolean;
+  winnerId?: string | null;
+}
+
+export type GarticAction =
+  | { type: "guess"; text: string }
+  | { type: "next" };
+
+/** Real-time drawing operation (normalized 0–1 coordinates). */
+export type DrawOp =
+  | { t: "line"; x0: number; y0: number; x1: number; y1: number; c: string; w: number }
+  | { t: "clear" };
+
 /* ── Unions ──────────────────────────────────────────────────────────────── */
 
 export type GameView =
@@ -224,10 +271,12 @@ export type GameView =
   | PetitBacView
   | SixQuiPrendView
   | CodenamesView
-  | SkyjoView;
+  | SkyjoView
+  | GarticView;
 export type GameAction =
   | BombPartyAction
   | PetitBacAction
   | SixQuiPrendAction
   | CodenamesAction
-  | SkyjoAction;
+  | SkyjoAction
+  | GarticAction;

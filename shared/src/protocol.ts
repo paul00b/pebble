@@ -3,7 +3,7 @@
 // format. Import these into `io<...>()` (server) and `Socket<...>()` (client).
 
 import type { GameId, RoomState } from "./types";
-import type { GameAction, Language } from "./games";
+import type { DrawOp, GameAction, Language } from "./games";
 
 /** Identity a client presents when creating or joining a room. */
 export interface PlayerIdentity {
@@ -52,6 +52,10 @@ export interface ClientToServerEvents {
   "chat:send": (text: string) => void;
   /** A move within the active game. The server validates against its state. */
   "game:action": (action: GameAction) => void;
+  /** Real-time drawing op from the current drawer (Gartic). */
+  "draw:op": (op: DrawOp) => void;
+  /** Ask the server for the current drawing (e.g. after joining mid-round). */
+  "draw:request": () => void;
 }
 
 /** Events the server emits to clients. */
@@ -66,6 +70,9 @@ export interface ServerToClientEvents {
   }) => void;
   /** Server is shutting the room down (host left with no successor, etc.). */
   "room:closed": (reason: string) => void;
+  /** A relayed drawing op (Gartic), or the full op list as a sync. */
+  "draw:op": (op: DrawOp) => void;
+  "draw:sync": (ops: DrawOp[]) => void;
 }
 
 /** Per-socket data the server tracks. */

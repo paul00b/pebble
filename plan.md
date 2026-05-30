@@ -246,3 +246,52 @@ No database needed for MVP (rooms are in memory). If/when accounts arrive, add *
 ## 12. Immediate next step
 
 On your go, I'll start **Phase 0 + Phase 1**: scaffold the monorepo and build the design system + landing + lobby so you can create a room and watch friends join in real time. That's the fastest path to a tangible "wow" you can show people — before any game logic exists.
+
+---
+
+## 13. Build status / resume notes
+
+> Living log of what's actually built, so work can be picked up on any machine. Last updated: **2026-05-30**.
+
+### Repo reality (vs. §5 plan)
+- Workspace name is **`pebble`** (npm workspaces, not pnpm). Two workspaces: `client/` (React + Vite) and `server/` (Node + Socket.IO). Shared types live in **`shared/src/`** and are imported by relative path (`../../../shared/src/*.js`) on the server and via the `@shared` alias on the client.
+- Realtime uses **Socket.IO** (as recommended in §11). Rooms are in-memory in `server/src/rooms.ts` (`RoomManager`).
+- Game engine abstraction lives in `server/src/games/engine.ts`; engines are registered in `server/src/games/registry.ts`. Each game = one server engine + one client view in `client/src/games/`.
+
+### Games implemented (6)
+| Game | Server engine | Client view |
+|---|---|---|
+| Bomb Party | `server/src/games/bombparty.ts` | `client/src/games/BombParty.tsx` |
+| Petit Bac | `server/src/games/petitbac.ts` | `client/src/games/PetitBac.tsx` |
+| 6 Qui Prend | `server/src/games/sixquiprend.ts` | `client/src/games/SixQuiPrend.tsx` |
+| Codenames | `server/src/games/codenames.ts` | `client/src/games/Codenames.tsx` |
+| Skyjo | `server/src/games/skyjo.ts` | `client/src/games/Skyjo.tsx` |
+| **Gartic** ✅ *(just added)* | `server/src/games/gartic.ts` + `garticWords.ts` | `client/src/games/Gartic.tsx` |
+
+### Gartic — what was built this session (COMPLETE)
+Draw-&-guess game. One player draws a secret word on a canvas; everyone else races to guess it in a chat-style feed. Faster guesses score more; the drawer earns a bonus per correct guesser. One lap = each player draws once.
+- **Server engine** (`gartic.ts`): phases `drawing → reveal → done`; per-round drawer rotation; scoring (time-weighted guess points + 20 drawer bonus); early reveal when all non-drawers guess; host-driven `next`; `onLeave` handles the drawer bailing.
+- **Drawing side-channel**: drawing strokes travel on a dedicated `draw:op` / `draw:sync` / `draw:request` Socket.IO channel (kept OUT of the heavy room snapshot). Server relays drawer ops to the room and can resync late joiners. Wired in `server/src/index.ts` + `RoomManager.drawOp/drawOps` in `server/src/rooms.ts`. Engine exposes optional `drawOps()` / `applyDrawOp()` (added to the `GameEngine` interface).
+- **Shared types** (`shared/src/games.ts`, `types.ts`, `protocol.ts`, `index.ts`): `GarticView`, `GarticAction`, `GarticMessage`, `DrawOp`, `GameId` += `gartic`, `GAMES` meta entry (2–12 players), and the `draw:*` protocol events.
+- **Client view** (`Gartic.tsx`, wired into `GamePlay.tsx`): real-time `<canvas>` with normalized 0–1 coords (resolution-independent, dpr-aware, ResizeObserver redraw); drawer toolbar (10 colors, 4 brush sizes, clear); guess input + live feed; scoreboard with drawer/guessed badges; timer bar; reveal banner with host "Next round / See results"; results screen with confetti.
+- **i18n**: `ga.*` + `game.gartic.*` keys added to `client/src/lib/i18n.ts` (EN + FR).
+- **Tests**: `scripts/gartic-test.ts` (19 deterministic checks, all passing), wired into the `test:engine` npm script.
+
+### Verification done
+- `npm run typecheck` — clean (server + client).
+- `npm run build` — clean (Vite production build).
+- `npm run test:engine` — all engine suites pass, incl. 19 Gartic checks.
+- ⚠️ **Not yet done**: live multi-client playtest of Gartic over a real socket (no `scripts/gartic-socket.mjs` written). The socket-level relay was verified only by reading the wiring, not exercised end-to-end. Worth a manual `npm run dev` smoke test with two browser tabs.
+
+### How to run
+```
+npm install            # if node_modules is missing (note: this machine needs NODE_OPTIONS=--use-system-ca, see memory)
+npm run dev            # server (3001) + client (Vite) together
+npm run typecheck
+npm run test:engine
+```
+
+### Suggested next steps
+1. Manual two-tab playtest of Gartic (draw relay, guessing, scoring, round rotation, reconnection mid-draw).
+2. Consider a `scripts/gartic-socket.mjs` e2e like the other socket tests; add it to `test:games`.
+3. Continue §8 Phase 5 (more games) or move to Phase 4 (VPS deploy) per §9.

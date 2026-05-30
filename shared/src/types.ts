@@ -9,7 +9,8 @@ export type GameId =
   | "petitbac"
   | "sixquiprend"
   | "codenames"
-  | "skyjo";
+  | "skyjo"
+  | "gartic";
 
 /** High-level phase of a room. */
 export type RoomPhase = "lobby" | "playing" | "results";
@@ -114,6 +115,15 @@ export const GAMES: GameMeta[] = [
     minPlayers: 2,
     maxPlayers: 8,
     duration: "10–15 min",
+  },
+  {
+    id: "gartic",
+    name: "Gartic",
+    tagline: "One draws, everyone races to guess the word.",
+    emoji: "🎨",
+    minPlayers: 2,
+    maxPlayers: 12,
+    duration: "10–20 min",
   },
 ];
 

@@ -2,7 +2,7 @@
 // instantiates an engine on start, feeds it validated actions + time ticks,
 // and broadcasts whatever view() returns. Adding a game = implement this once.
 
-import type { GameAction, GameView, Language } from "../../../shared/src/games.js";
+import type { DrawOp, GameAction, GameView, Language } from "../../../shared/src/games.js";
 import type { Player } from "../../../shared/src/types.js";
 
 export interface ActionContext {
@@ -34,4 +34,9 @@ export interface GameEngine<State = unknown> {
   tick(state: State, now: number): boolean;
   /** A player left mid-game. Mutates state. Returns true if changed. */
   onLeave(state: State, playerId: string, now: number): boolean;
+
+  /** Optional real-time drawing side-channel (Gartic). */
+  drawOps?(state: State): DrawOp[];
+  /** Apply a drawing op; returns true if accepted (and should be relayed). */
+  applyDrawOp?(state: State, playerId: string, op: DrawOp): boolean;
 }

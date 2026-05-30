@@ -42,6 +42,12 @@ export type {
   SkyjoPlayerPublic,
   SkyjoView,
   SkyjoAction,
+  GarticPhase,
+  GarticPlayerScore,
+  GarticMessage,
+  GarticView,
+  GarticAction,
+  DrawOp,
   GameView,
   GameAction,
 } from "./games";

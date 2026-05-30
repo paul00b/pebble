@@ -4,6 +4,7 @@ import { PetitBac } from "./PetitBac";
 import { SixQuiPrend } from "./SixQuiPrend";
 import { Codenames } from "./Codenames";
 import { Skyjo } from "./Skyjo";
+import { Gartic } from "./Gartic";
 import { gameById, type RoomState } from "@shared";
 
 /** Renders the active game for a room whose phase is "playing". */
@@ -18,6 +19,7 @@ export function GamePlay({ room, onLeave }: { room: RoomState; onLeave: () => vo
       {room.game?.kind === "sixquiprend" && <SixQuiPrend room={room} />}
       {room.game?.kind === "codenames" && <Codenames room={room} />}
       {room.game?.kind === "skyjo" && <Skyjo room={room} />}
+      {room.game?.kind === "gartic" && <Gartic room={room} />}
       {!room.game && (
         <div className="grid flex-1 place-items-center text-mist">Loading game…</div>
       )}

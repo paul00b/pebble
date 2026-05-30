@@ -5,6 +5,7 @@ import { petitBac } from "./petitbac.js";
 import { sixQuiPrend } from "./sixquiprend.js";
 import { codenames } from "./codenames.js";
 import { skyjo } from "./skyjo.js";
+import { gartic } from "./gartic.js";
 
 export const ENGINES: Record<GameId, GameEngine<any>> = {
   bombparty: bombParty,
@@ -12,4 +13,5 @@ export const ENGINES: Record<GameId, GameEngine<any>> = {
   sixquiprend: sixQuiPrend,
   codenames,
   skyjo,
+  gartic,
 };
