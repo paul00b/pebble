@@ -4,7 +4,11 @@
 import type { GameView, Language } from "./games";
 
 /** Identifiers for every game the platform can host. */
-export type GameId = "bombparty" | "petitbac" | "sixquiprend";
+export type GameId =
+  | "bombparty"
+  | "petitbac"
+  | "sixquiprend"
+  | "codenames";
 
 /** High-level phase of a room. */
 export type RoomPhase = "lobby" | "playing" | "results";
@@ -91,6 +95,15 @@ export const GAMES: GameMeta[] = [
     minPlayers: 2,
     maxPlayers: 10,
     duration: "10–20 min",
+  },
+  {
+    id: "codenames",
+    name: "Codenames",
+    tagline: "Two teams, secret words, one-word clues from your spymaster.",
+    emoji: "🕵️",
+    minPlayers: 4,
+    maxPlayers: 8,
+    duration: "15–25 min",
   },
 ];
 

@@ -1,0 +1,116 @@
+// Deterministic unit tests for Codenames, with a controlled key and teams.
+import { codenames } from "../server/src/games/codenames.js";
+
+let pass = 0;
+const ok = (c: unknown, m: string) => {
+  if (!c) { console.error("❌", m); process.exit(1); }
+  pass++; console.log("✅", m);
+};
+
+const players = (...ids: string[]) =>
+  ids.map((id) => ({ id, name: id, avatar: "🕵️", color: "#fff", isHost: false, connected: true, joinedAt: 0 }));
+
+const HOST = { now: 0, isHost: true };
+const P = { now: 0, isHost: false };
+
+const fixedMembers = {
+  a: { team: "red", role: "spymaster" },
+  b: { team: "red", role: "operative" },
+  c: { team: "blue", role: "spymaster" },
+  d: { team: "blue", role: "operative" },
+};
+
+const key = (overrides: Record<number, string>): string[] => {
+  const k = Array(25).fill("neutral");
+  for (const [i, c] of Object.entries(overrides)) k[Number(i)] = c;
+  return k;
+};
+
+function base(): any {
+  const s: any = codenames.init(players("a", "b", "c", "d"), 0, { language: "en" });
+  s.members = JSON.parse(JSON.stringify(fixedMembers));
+  s.order = ["a", "b", "c", "d"];
+  return s;
+}
+
+function started(keyArr: string[], remaining: { red: number; blue: number }, turn = "red"): any {
+  const s = base();
+  s.key = keyArr;
+  s.revealed = Array(25).fill(null);
+  s.remaining = remaining;
+  s.turnTeam = turn;
+  s.phase = "guess";
+  s.clue = { word: "x", count: 5 };
+  s.guessesLeft = 5;
+  return s;
+}
+
+// A. Setup → begin validation.
+{
+  const s = base(); // phase "setup"
+  ok(codenames.action(s, "b", { type: "begin" }, P) === false, "cn: non-host can't begin");
+  ok(codenames.action(s, "a", { type: "begin" }, HOST) === true && s.phase === "clue",
+    "cn: host begins when both teams are staffed");
+
+  const bad = base();
+  bad.members.c.role = "operative"; // blue has no spymaster
+  ok(codenames.action(bad, "a", { type: "begin" }, HOST) === false && bad.phase === "setup",
+    "cn: can't begin without a spymaster on each team");
+}
+
+// B. Clue then a correct guess continues the turn.
+{
+  const s = base();
+  codenames.action(s, "a", { type: "begin" }, HOST);
+  s.key = key({ 0: "red", 1: "red", 5: "blue", 6: "blue", 24: "assassin" });
+  s.remaining = { red: 2, blue: 2 };
+  s.turnTeam = "red";
+  ok(codenames.action(s, "c", { type: "clue", word: "tree", count: 2 }, P) === false,
+    "cn: only the active spymaster may give a clue");
+  codenames.action(s, "a", { type: "clue", word: "tree", count: 2 }, P);
+  ok(s.phase === "guess" && s.guessesLeft === 3, "cn: clue grants count+1 guesses");
+  codenames.action(s, "b", { type: "guess", index: 0 }, P);
+  ok(s.revealed[0] === "red" && s.remaining.red === 1 && s.turnTeam === "red",
+    "cn: correct guess reveals red and keeps the turn");
+}
+
+// C. Sweeping the last card wins.
+{
+  const s = started(key({ 0: "red" }), { red: 1, blue: 5 });
+  codenames.action(s, "b", { type: "guess", index: 0 }, P);
+  ok(s.phase === "over" && s.winner === "red" && s.endReason === "swept",
+    "cn: revealing your last agent wins the game");
+}
+
+// D. Neutral ends the turn.
+{
+  const s = started(key({ 7: "neutral" }), { red: 3, blue: 3 });
+  codenames.action(s, "b", { type: "guess", index: 7 }, P);
+  ok(s.turnTeam === "blue" && s.phase === "clue", "cn: a neutral guess ends the turn");
+}
+
+// E. Guessing the other team's card helps them and ends the turn.
+{
+  const s = started(key({ 8: "blue" }), { red: 3, blue: 3 });
+  codenames.action(s, "b", { type: "guess", index: 8 }, P);
+  ok(s.remaining.blue === 2 && s.turnTeam === "blue", "cn: wrong-color guess gives the other team a card");
+}
+
+// F. Assassin = instant loss.
+{
+  const s = started(key({ 9: "assassin" }), { red: 3, blue: 3 });
+  codenames.action(s, "b", { type: "guess", index: 9 }, P);
+  ok(s.phase === "over" && s.winner === "blue" && s.endReason === "assassin",
+    "cn: hitting the assassin loses immediately");
+}
+
+// G. The key is hidden from operatives, visible to spymasters.
+{
+  const s = started(key({ 0: "red" }), { red: 3, blue: 3 });
+  const opView = codenames.playerView!(s, "b") as any;
+  const spyView = codenames.playerView!(s, "a") as any;
+  ok(opView.key.every((c: unknown) => c === null), "cn: operatives never see the key");
+  ok(spyView.key[0] === "red", "cn: spymasters see the full key");
+}
+
+console.log(`\n🎉 All ${pass} codenames checks passed.`);

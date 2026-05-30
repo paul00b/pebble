@@ -134,7 +134,60 @@ export type SixQuiPrendAction =
   | { type: "choose"; card: number }
   | { type: "takeRow"; rowIndex: number };
 
+/* ── Codenames ───────────────────────────────────────────────────────────── */
+
+export type CodenamesTeam = "red" | "blue";
+export type CodenamesCardColor = "red" | "blue" | "neutral" | "assassin";
+export type CodenamesRole = "spymaster" | "operative";
+export type CodenamesPhase = "setup" | "clue" | "guess" | "over";
+
+export interface CodenamesMember {
+  id: string;
+  team: CodenamesTeam | null;
+  role: CodenamesRole;
+}
+
+export interface CodenamesView {
+  kind: "codenames";
+  phase: CodenamesPhase;
+  /** The 25 code words. */
+  words: string[];
+  /** Revealed color per cell, or null if still face-down. */
+  revealed: (CodenamesCardColor | null)[];
+  /** Full key — populated only for spymasters (else all null). Personalized. */
+  key: (CodenamesCardColor | null)[];
+  members: CodenamesMember[];
+  turnTeam: CodenamesTeam;
+  clue: { word: string; count: number } | null;
+  /** Guesses the current team has left this turn. */
+  guessesLeft: number;
+  /** Cards each team still needs to find. */
+  remaining: { red: number; blue: number };
+  /** Viewer's own assignment. */
+  youTeam: CodenamesTeam | null;
+  youRole: CodenamesRole;
+  winner: CodenamesTeam | null;
+  /** Reason the game ended (e.g. assassin), for display. */
+  endReason?: "swept" | "assassin" | null;
+}
+
+export type CodenamesAction =
+  | { type: "setTeam"; team: CodenamesTeam }
+  | { type: "setRole"; role: CodenamesRole }
+  | { type: "begin" }
+  | { type: "clue"; word: string; count: number }
+  | { type: "guess"; index: number }
+  | { type: "endTurn" };
+
 /* ── Unions ──────────────────────────────────────────────────────────────── */
 
-export type GameView = BombPartyView | PetitBacView | SixQuiPrendView;
-export type GameAction = BombPartyAction | PetitBacAction | SixQuiPrendAction;
+export type GameView =
+  | BombPartyView
+  | PetitBacView
+  | SixQuiPrendView
+  | CodenamesView;
+export type GameAction =
+  | BombPartyAction
+  | PetitBacAction
+  | SixQuiPrendAction
+  | CodenamesAction;

@@ -31,6 +31,13 @@ export type {
   SixTurnEntry,
   SixQuiPrendView,
   SixQuiPrendAction,
+  CodenamesTeam,
+  CodenamesCardColor,
+  CodenamesRole,
+  CodenamesPhase,
+  CodenamesMember,
+  CodenamesView,
+  CodenamesAction,
   GameView,
   GameAction,
 } from "./games";
