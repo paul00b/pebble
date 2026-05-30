@@ -10,13 +10,12 @@ import type {
   GameAction,
   Language,
 } from "../../../shared/src/games.js";
-import type { ActionContext, GameEngine } from "./engine.js";
+import type { ActionContext, GameEngine, InitOptions } from "./engine.js";
 import { isValidWord, normalize, preload, randomPrompt } from "./dictionary.js";
 
 const START_LIVES = 2;
 const MIN_FUSE_MS = 10_000;
 const MAX_FUSE_MS = 26_000;
-const DEFAULT_LANGUAGE: Language = "fr";
 
 interface BombState {
   language: Language;
@@ -43,16 +42,17 @@ function nextAlive(order: string[], current: string): string {
 }
 
 export const bombParty: GameEngine<BombState> = {
-  init(players: Player[], now: number): BombState {
-    preload(DEFAULT_LANGUAGE);
+  init(players: Player[], now: number, opts: InitOptions): BombState {
+    const language: Language = opts.language;
+    preload(language);
     const order = players.map((p) => p.id);
     const lives: Record<string, number> = {};
     for (const id of order) lives[id] = START_LIVES;
     return {
-      language: DEFAULT_LANGUAGE,
+      language,
       order,
       current: order[0],
-      prompt: randomPrompt(DEFAULT_LANGUAGE),
+      prompt: randomPrompt(language),
       typed: "",
       deadline: randomFuse(now),
       fuseStart: now,

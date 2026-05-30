@@ -3,7 +3,7 @@
 // format. Import these into `io<...>()` (server) and `Socket<...>()` (client).
 
 import type { GameId, RoomState } from "./types";
-import type { GameAction } from "./games";
+import type { GameAction, Language } from "./games";
 
 /** Identity a client presents when creating or joining a room. */
 export interface PlayerIdentity {
@@ -17,6 +17,8 @@ export interface PlayerIdentity {
 export interface CreateRoomPayload {
   identity: PlayerIdentity;
   game?: GameId;
+  /** Initial game-content language (defaults server-side if omitted). */
+  language?: Language;
 }
 
 export interface JoinRoomPayload {
@@ -41,6 +43,8 @@ export interface ClientToServerEvents {
   ) => void;
   "room:leave": () => void;
   "room:selectGame": (game: GameId) => void;
+  /** Host sets the game-content language (Bomb Party dict, Petit Bac categories). */
+  "room:setLanguage": (language: Language) => void;
   "room:start": (ack: (result: { ok: boolean; reason?: string }) => void) => void;
   /** Host returns the room to the lobby (e.g. after a game ends). */
   "room:toLobby": () => void;
@@ -54,8 +58,12 @@ export interface ClientToServerEvents {
 export interface ServerToClientEvents {
   /** Full authoritative snapshot. Clients render exactly this. */
   "room:state": (room: RoomState) => void;
-  /** Transient toast/notice (player joined, kicked, errors). */
-  "room:notice": (notice: { kind: "info" | "warn" | "error"; text: string }) => void;
+  /** Transient toast/notice. `key` is an i18n key the client localizes. */
+  "room:notice": (notice: {
+    kind: "info" | "warn" | "error";
+    key: string;
+    params?: Record<string, string | number>;
+  }) => void;
   /** Server is shutting the room down (host left with no successor, etc.). */
   "room:closed": (reason: string) => void;
 }

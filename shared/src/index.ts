@@ -18,6 +18,7 @@ export type {
   ServerToClientEvents,
   SocketData,
 } from "./protocol";
+export { bullHeads } from "./games";
 export type {
   Language,
   BombPartyView,
@@ -26,6 +27,10 @@ export type {
   PetitBacCell,
   PetitBacView,
   PetitBacAction,
+  SixPlayerPublic,
+  SixTurnEntry,
+  SixQuiPrendView,
+  SixQuiPrendAction,
   GameView,
   GameAction,
 } from "./games";

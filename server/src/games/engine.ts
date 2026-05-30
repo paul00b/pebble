@@ -2,7 +2,7 @@
 // instantiates an engine on start, feeds it validated actions + time ticks,
 // and broadcasts whatever view() returns. Adding a game = implement this once.
 
-import type { GameAction, GameView } from "../../../shared/src/games.js";
+import type { GameAction, GameView, Language } from "../../../shared/src/games.js";
 import type { Player } from "../../../shared/src/types.js";
 
 export interface ActionContext {
@@ -11,11 +11,21 @@ export interface ActionContext {
   isHost: boolean;
 }
 
+export interface InitOptions {
+  /** Game-content language chosen for the room. */
+  language: Language;
+}
+
 export interface GameEngine<State = unknown> {
   /** Build the initial authoritative state from the lobby's players. */
-  init(players: Player[], now: number): State;
+  init(players: Player[], now: number, opts: InitOptions): State;
   /** Trim the authoritative state into the public, client-facing view. */
   view(state: State): GameView;
+  /**
+   * Optional per-player view for games with hidden information (e.g. hands).
+   * When present, each player is sent their own tailored snapshot.
+   */
+  playerView?(state: State, playerId: string): GameView;
   /** Has the game finished? (the view still shows, with `over: true`) */
   isOver(state: State): boolean;
   /** Apply a player's move. Mutates state. Returns true if anything changed. */

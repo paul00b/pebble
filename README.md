@@ -4,9 +4,9 @@ A free, beautiful website to play party minigames online with friends. Spin up a
 room, share the 4-letter code, and drop straight into a game together — no app,
 no signup.
 
-> Current build: **Phases 0–3** — design system, landing page, a fully live
-> multiplayer lobby, plus two playable games: **Bomb Party** and **Petit Bac**.
-> See [`plan.md`](./plan.md).
+> Current build: design system, landing page, a fully live multiplayer lobby,
+> full **🇬🇧/🇫🇷 bilingual UI**, and three playable games: **Bomb Party**,
+> **Petit Bac**, and **6 Qui Prend**. See [`plan.md`](./plan.md).
 
 ## Stack
 
@@ -65,6 +65,10 @@ npm run dev:client   # Vite dev server on :5173
   dictionaries (~275k EN / ~323k FR words, accent-insensitive)
 - **Petit Bac** — a letter + categories, race to fill them in, "Stop!" to end
   the round, automatic scoring (unique = 2, shared = 1), multi-round scoreboard
+- **6 Qui Prend** (6 nimmt!) — secretly pick a card each turn; lay them in four
+  rows; take the 6th and you scoop the bulls. Language-free; private hands
+- **Bilingual UI** (English / French) with an in-app toggle, plus a per-room
+  *game-content* language for Bomb Party's dictionary and Petit Bac's categories
 
 ## Tests
 

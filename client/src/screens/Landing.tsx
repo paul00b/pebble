@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { Button, GlassCard } from "@/components/primitives";
 import { Wordmark } from "@/components/Wordmark";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useT } from "@/lib/useT";
 import { GAMES } from "@shared";
 
 const fadeUp = {
@@ -20,6 +22,7 @@ export function Landing({
   onCreate: () => void;
   onJoin: () => void;
 }) {
+  const t = useT();
   return (
     <div className="relative mx-auto flex min-h-dvh max-w-5xl flex-col px-5">
       {/* top bar */}
@@ -30,7 +33,10 @@ export function Landing({
         transition={{ duration: 0.5 }}
       >
         <Wordmark />
-        <ConnectionBadge />
+        <div className="flex items-center gap-2">
+          <ConnectionBadge />
+          <LanguageToggle />
+        </div>
       </motion.header>
 
       {/* hero */}
@@ -42,7 +48,7 @@ export function Landing({
           animate="show"
           className="glass mb-6 rounded-full px-4 py-1.5 text-xs tracking-wide text-mist"
         >
-          ✦ Game night, anywhere — no app, no signup
+          {t("landing.badge")}
         </motion.span>
 
         <motion.h1
@@ -52,7 +58,7 @@ export function Landing({
           animate="show"
           className="font-display text-5xl font-bold leading-[1.05] tracking-tight text-cloud sm:text-7xl"
         >
-          Gather your friends.
+          {t("landing.title1")}
           <br />
           <span
             style={{
@@ -62,7 +68,7 @@ export function Landing({
               color: "transparent",
             }}
           >
-            Play in seconds.
+            {t("landing.title2")}
           </span>
         </motion.h1>
 
@@ -73,8 +79,7 @@ export function Landing({
           animate="show"
           className="mt-5 max-w-xl text-balance text-lg text-mist"
         >
-          Pebble is a little glass arcade for your group chat. Spin up a room,
-          send the code, and drop straight into a party game together.
+          {t("landing.subtitle")}
         </motion.p>
 
         <motion.div
@@ -85,10 +90,10 @@ export function Landing({
           className="mt-9 flex flex-col items-center gap-3 sm:flex-row"
         >
           <Button onClick={onCreate} className="px-7 py-3.5 text-base">
-            Create a room
+            {t("landing.create")}
           </Button>
           <Button variant="ghost" onClick={onJoin} className="px-7 py-3.5 text-base">
-            Join with a code
+            {t("landing.join")}
           </Button>
         </motion.div>
 
@@ -101,7 +106,7 @@ export function Landing({
           className="mt-14 w-full"
         >
           <div className="mb-3 text-xs uppercase tracking-[0.25em] text-faint">
-            Now playing
+            {t("landing.nowPlaying")}
           </div>
           <div className="flex flex-wrap justify-center gap-3">
             {GAMES.map((g, i) => (
@@ -113,24 +118,26 @@ export function Landing({
               >
                 <span className="text-3xl">{g.emoji}</span>
                 <span className="mt-1 font-display text-lg font-semibold text-cloud">
-                  {g.name}
+                  {t(`game.${g.id}.name`)}
                 </span>
-                <span className="text-xs leading-snug text-mist">{g.tagline}</span>
+                <span className="text-xs leading-snug text-mist">
+                  {t(`game.${g.id}.tagline`)}
+                </span>
                 <span className="mt-2 text-[0.68rem] text-faint">
-                  {g.minPlayers}–{g.maxPlayers} players · {g.duration}
+                  {g.minPlayers}–{g.maxPlayers} · {t(`game.${g.id}.duration`)}
                 </span>
               </GlassCard>
             ))}
             <GlassCard className="flex w-44 flex-col items-center justify-center gap-1 p-4 text-center">
               <span className="text-2xl">✨</span>
-              <span className="text-sm text-mist">More games landing soon</span>
+              <span className="text-sm text-mist">{t("landing.moreSoon")}</span>
             </GlassCard>
           </div>
         </motion.div>
       </main>
 
       <footer className="py-6 text-center text-xs text-faint">
-        Free forever · Plays on any modern browser, phone or desktop
+        {t("landing.footer")}
       </footer>
     </div>
   );

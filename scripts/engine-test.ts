@@ -31,7 +31,7 @@ function frWordWith(prompt: string): string {
 
 // ── Bomb Party ─────────────────────────────────────────────────────────────
 {
-  const s: any = bombParty.init(players("a", "b", "c"), 1000);
+  const s: any = bombParty.init(players("a", "b", "c"), 1000, { language: "fr" });
   ok(s.current === "a" && s.order.length === 3, "bomb: starts with player a, 3 in order");
   ok(s.lives.a === 2 && s.lives.b === 2, "bomb: everyone starts with 2 lives");
 
@@ -65,7 +65,7 @@ function frWordWith(prompt: string): string {
   ok(s.lastEvent.type === "explode", "bomb: explosion event emitted");
 
   // Win condition: 2 players each on their last life → one explosion ends it.
-  const s2: any = bombParty.init(players("x", "y"), 0);
+  const s2: any = bombParty.init(players("x", "y"), 0, { language: "fr" });
   s2.lives.x = 1; s2.lives.y = 1;
   while (!s2.over) bombParty.tick(s2, s2.deadline + 1);
   ok(s2.over && (s2.winnerId === "x" || s2.winnerId === "y"), "bomb: last player standing wins");
@@ -73,7 +73,7 @@ function frWordWith(prompt: string): string {
 
 // ── Petit Bac ──────────────────────────────────────────────────────────────
 {
-  const s: any = petitBac.init(players("a", "b"), 0);
+  const s: any = petitBac.init(players("a", "b"), 0, { language: "fr" });
   ok(s.stage === "writing" && s.round === 1, "petitbac: opens in writing, round 1");
   const L = s.letter;
   const n = s.categories.length;

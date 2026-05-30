@@ -50,8 +50,22 @@ function reply<T>(ack: ((v: T) => void) | undefined, value: T) {
 // Re-broadcast a room's snapshot to everyone in it whenever it changes.
 manager.setListeners(
   (code) => {
-    const snap = manager.snapshot(code);
-    if (snap) io.to(code).emit("room:state", snap);
+    // Games with hidden info (e.g. card hands) get a per-player snapshot;
+    // everything else shares one broadcast.
+    if (!manager.hasPrivateViews(code)) {
+      const snap = manager.snapshot(code);
+      if (snap) io.to(code).emit("room:state", snap);
+      return;
+    }
+    void io
+      .in(code)
+      .fetchSockets()
+      .then((sockets) => {
+        for (const s of sockets) {
+          const snap = manager.snapshot(code, s.data.sessionId);
+          if (snap) s.emit("room:state", snap);
+        }
+      });
   },
   (code, reason) => {
     io.to(code).emit("room:closed", reason);
@@ -66,8 +80,8 @@ io.on("connection", (socket) => {
     socket.join(code);
   };
 
-  socket.on("room:create", ({ identity, game }, ack) => {
-    const room = manager.createRoom(identity, game);
+  socket.on("room:create", ({ identity, game, language }, ack) => {
+    const room = manager.createRoom(identity, game, language);
     bind(room.code, identity.sessionId);
     reply(ack, { ok: true, room, you: identity.sessionId });
   });
@@ -83,7 +97,8 @@ io.on("connection", (socket) => {
     reply(ack, { ok: true, room: result.room, you: identity.sessionId });
     socket.to(normalized).emit("room:notice", {
       kind: "info",
-      text: `${identity.name} joined.`,
+      key: "notice.playerJoined",
+      params: { name: identity.name },
     });
   });
 
@@ -99,6 +114,11 @@ io.on("connection", (socket) => {
   socket.on("room:selectGame", (game) => {
     const { roomCode, sessionId } = socket.data;
     if (roomCode && sessionId) manager.selectGame(roomCode, sessionId, game);
+  });
+
+  socket.on("room:setLanguage", (language) => {
+    const { roomCode, sessionId } = socket.data;
+    if (roomCode && sessionId) manager.setLanguage(roomCode, sessionId, language);
   });
 
   socket.on("room:start", (ack) => {

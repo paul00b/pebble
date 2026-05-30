@@ -6,26 +6,23 @@
 import type { Player } from "../../../shared/src/types.js";
 import type {
   GameAction,
+  Language,
   PetitBacAction,
   PetitBacCell,
   PetitBacStage,
   PetitBacView,
 } from "../../../shared/src/games.js";
-import type { ActionContext, GameEngine } from "./engine.js";
+import type { ActionContext, GameEngine, InitOptions } from "./engine.js";
 import { normalize } from "./dictionary.js";
 
 const WRITE_MS = 100_000;
 const TOTAL_ROUNDS = 4;
 // Skip awkward letters (K, Q, W, X, Y, Z) so every round is playable.
 const LETTERS = "ABCDEFGHILMNOPRSTUV";
-const CATEGORIES = [
-  "Pays",
-  "Ville",
-  "Animal",
-  "Prénom",
-  "Métier",
-  "Fruit ou légume",
-];
+const CATEGORIES: Record<Language, string[]> = {
+  fr: ["Pays", "Ville", "Animal", "Prénom", "Métier", "Fruit ou légume"],
+  en: ["Country", "City", "Animal", "First name", "Job", "Fruit or vegetable"],
+};
 
 interface PBState {
   letter: string;
@@ -99,13 +96,13 @@ function endWriting(state: PBState) {
 }
 
 export const petitBac: GameEngine<PBState> = {
-  init(players: Player[], now: number): PBState {
+  init(players: Player[], now: number, opts: InitOptions): PBState {
     const ids = players.map((p) => p.id);
     const scores: Record<string, number> = {};
     for (const id of ids) scores[id] = 0;
     const state: PBState = {
       letter: "",
-      categories: CATEGORIES,
+      categories: CATEGORIES[opts.language],
       round: 0,
       totalRounds: TOTAL_ROUNDS,
       stage: "writing",

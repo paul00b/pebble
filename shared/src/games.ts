@@ -82,7 +82,59 @@ export type PetitBacAction =
   | { type: "stop" }
   | { type: "next" };
 
+/* ── 6 Qui Prend (6 nimmt!) ──────────────────────────────────────────────── */
+
+/** Penalty "bull heads" on a card (1–104). Shared by server scoring + client. */
+export function bullHeads(card: number): number {
+  if (card === 55) return 7;
+  if (card % 11 === 0) return 5;
+  if (card % 10 === 0) return 3;
+  if (card % 5 === 0) return 2;
+  return 1;
+}
+
+export interface SixPlayerPublic {
+  id: string;
+  bulls: number;
+  handCount: number;
+  hasChosen: boolean;
+}
+
+/** One card's placement during a turn's resolution, for display. */
+export interface SixTurnEntry {
+  playerId: string;
+  card: number;
+  rowIndex: number;
+  /** True if the player had to take the row (gaining its bulls). */
+  tookRow: boolean;
+  gained: number;
+}
+
+export interface SixQuiPrendView {
+  kind: "sixquiprend";
+  phase: "choosing" | "takeRow" | "done";
+  /** The four rows on the table (each 1–5 cards). */
+  rows: number[][];
+  turn: number;
+  totalTurns: number;
+  players: SixPlayerPublic[];
+  /** The viewer's own hand (sorted) — personalized per player. */
+  hand: number[];
+  /** Whether the viewer has locked a card this turn. */
+  youChose: boolean;
+  /** During "takeRow": the player who must pick a row to take. */
+  pendingPlayerId?: string | null;
+  /** Summary of the most recently resolved turn. */
+  lastTurn?: SixTurnEntry[];
+  over: boolean;
+  winnerId?: string | null;
+}
+
+export type SixQuiPrendAction =
+  | { type: "choose"; card: number }
+  | { type: "takeRow"; rowIndex: number };
+
 /* ── Unions ──────────────────────────────────────────────────────────────── */
 
-export type GameView = BombPartyView | PetitBacView;
-export type GameAction = BombPartyAction | PetitBacAction;
+export type GameView = BombPartyView | PetitBacView | SixQuiPrendView;
+export type GameAction = BombPartyAction | PetitBacAction | SixQuiPrendAction;

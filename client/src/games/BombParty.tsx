@@ -3,10 +3,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, Button, GlassCard } from "@/components/primitives";
 import { Confetti } from "@/components/Confetti";
 import { useStore } from "@/lib/store";
+import { useT } from "@/lib/useT";
 import { remaining, useClock } from "@/lib/useClock";
 import type { BombPartyView, Player, RoomState } from "@shared";
 
 export function BombParty({ room }: { room: RoomState }) {
+  const t = useT();
   const game = room.game as BombPartyView;
   const youId = useStore((s) => s.youId);
   const gameAction = useStore((s) => s.gameAction);
@@ -39,7 +41,10 @@ export function BombParty({ room }: { room: RoomState }) {
     seenEvent.current = e.at;
     if (e.playerId === youId && (e.type === "invalid" || e.type === "used")) {
       setReject({
-        text: e.type === "used" ? "Already used!" : `Not a word with “${game.prompt}”`,
+        text:
+          e.type === "used"
+            ? t("bomb.used")
+            : t("bomb.notWord", { prompt: game.prompt }),
         key: e.at,
       });
     }
@@ -66,7 +71,7 @@ export function BombParty({ room }: { room: RoomState }) {
   const R = 120;
   const C = 2 * Math.PI * R;
 
-  if (game.over) return <BombResults game={game} players={players} youId={youId} />;
+  if (game.over) return <BombResults game={game} players={players} youId={youId} t={t} />;
 
   return (
     <div className="flex flex-1 flex-col items-center justify-between gap-6 pb-6">
@@ -158,7 +163,7 @@ export function BombParty({ room }: { room: RoomState }) {
               value={input}
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submit()}
-              placeholder={`Type a word with “${game.prompt}”`}
+              placeholder={t("bomb.placeholder", { prompt: game.prompt })}
               autoComplete="off"
               autoCorrect="off"
               spellCheck={false}
@@ -168,14 +173,14 @@ export function BombParty({ room }: { room: RoomState }) {
               {reject ? (
                 <span className="text-rose-300">{reject.text}</span>
               ) : (
-                <span className="text-faint">Hit Enter to send</span>
+                <span className="text-faint">{t("bomb.enterToSend")}</span>
               )}
             </div>
           </motion.div>
         ) : (
           <div className="text-center">
             <div className="text-sm text-faint">
-              {players[game.current]?.name ?? "Someone"} is typing…
+              {t("bomb.typing", { name: players[game.current]?.name ?? "…" })}
             </div>
             <div className="mt-1 min-h-[2.5rem] font-display text-2xl text-cloud">
               {game.typed || <span className="text-faint">…</span>}
@@ -197,10 +202,12 @@ function BombResults({
   game,
   players,
   youId,
+  t,
 }: {
   game: BombPartyView;
   players: Record<string, Player>;
   youId: string | null;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }) {
   const room = useStore((s) => s.room);
   const toLobby = useStore((s) => s.toLobby);
@@ -218,7 +225,9 @@ function BombResults({
         transition={{ type: "spring", stiffness: 200, damping: 20 }}
       >
         <div className="text-6xl">🏆</div>
-        <div className="mt-3 text-sm uppercase tracking-[0.25em] text-faint">Winner</div>
+        <div className="mt-3 text-sm uppercase tracking-[0.25em] text-faint">
+          {t("bomb.winner")}
+        </div>
         {winner ? (
           <>
             <div className="mt-2 flex items-center justify-center gap-3">
@@ -228,18 +237,18 @@ function BombResults({
               </span>
             </div>
             {game.winnerId === youId && (
-              <div className="mt-2 text-accent">Last one standing — that's you! 🎉</div>
+              <div className="mt-2 text-accent">{t("bomb.youWin")}</div>
             )}
           </>
         ) : (
-          <div className="mt-2 font-display text-2xl text-cloud">Game over</div>
+          <div className="mt-2 font-display text-2xl text-cloud">{t("bomb.gameOver")}</div>
         )}
         {isHost ? (
           <Button full className="mt-6" onClick={toLobby}>
-            Back to lobby
+            {t("common.backToLobby")}
           </Button>
         ) : (
-          <div className="mt-6 text-sm text-mist">Waiting for the host…</div>
+          <div className="mt-6 text-sm text-mist">{t("common.waitingHost")}</div>
         )}
       </GlassCard>
     </div>

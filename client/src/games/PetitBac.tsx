@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Avatar, Button, GlassCard } from "@/components/primitives";
 import { Confetti } from "@/components/Confetti";
 import { useStore } from "@/lib/store";
+import { useT } from "@/lib/useT";
 import { useClock } from "@/lib/useClock";
 import type { PetitBacView, Player, RoomState } from "@shared";
 
@@ -23,6 +24,7 @@ export function PetitBac({ room }: { room: RoomState }) {
 
 /* ── Writing phase ─────────────────────────────────────────────────────────── */
 function Writing({ game }: { game: PetitBacView }) {
+  const t = useT();
   const gameAction = useStore((s) => s.gameAction);
   const [answers, setAnswers] = useState<string[]>(() => game.categories.map(() => ""));
   const [stopped, setStopped] = useState(false);
@@ -60,9 +62,16 @@ function Writing({ game }: { game: PetitBacView }) {
             {game.letter}
           </motion.div>
           <div>
-            <div className="font-display text-xl text-cloud">Words in “{game.letter}”</div>
+            <div className="font-display text-xl text-cloud">
+              {t("pb.wordsIn", { letter: game.letter })}
+            </div>
             <div className="text-xs text-faint">
-              Round {game.round}/{game.totalRounds} · {game.finishedCount}/{game.totalPlayers} done
+              {t("pb.roundInfo", {
+                round: game.round,
+                total: game.totalRounds,
+                done: game.finishedCount,
+                players: game.totalPlayers,
+              })}
             </div>
           </div>
         </div>
@@ -113,7 +122,9 @@ function Writing({ game }: { game: PetitBacView }) {
 
       <div className="mt-auto flex items-center gap-3">
         <Button full onClick={stop} disabled={stopped} variant={stopped ? "ghost" : "primary"}>
-          {stopped ? "Locked in — waiting…" : `STOP! (${filled}/${game.categories.length} filled)`}
+          {stopped
+            ? t("pb.locked")
+            : t("pb.stop", { filled, total: game.categories.length })}
         </Button>
       </div>
     </div>
@@ -130,6 +141,7 @@ function Reveal({
   players: Record<string, Player>;
   youId: string | null;
 }) {
+  const t = useT();
   const room = useStore((s) => s.room);
   const gameAction = useStore((s) => s.gameAction);
   const isHost = room?.hostId === youId;
@@ -139,10 +151,10 @@ function Reveal({
     <div className="flex flex-1 flex-col gap-4 pb-6">
       <div className="flex items-center justify-between">
         <div className="font-display text-2xl text-cloud">
-          Letter “{game.letter}” · results
+          {t("pb.results", { letter: game.letter })}
         </div>
         <div className="text-sm text-faint">
-          Round {game.round}/{game.totalRounds}
+          {t("pb.round", { round: game.round, total: game.totalRounds })}
         </div>
       </div>
 
@@ -194,11 +206,11 @@ function Reveal({
 
       {isHost ? (
         <Button full onClick={() => gameAction({ type: "next" })}>
-          {last ? "See final results" : "Next round"}
+          {last ? t("pb.finalResults") : t("pb.nextRound")}
         </Button>
       ) : (
         <div className="rounded-2xl border border-white/10 bg-white/5 py-3 text-center text-sm text-mist">
-          Waiting for the host to continue…
+          {t("pb.waitingContinue")}
         </div>
       )}
     </div>
@@ -215,6 +227,7 @@ function FinalScores({
   players: Record<string, Player>;
   youId: string | null;
 }) {
+  const t = useT();
   const room = useStore((s) => s.room);
   const toLobby = useStore((s) => s.toLobby);
   const isHost = room?.hostId === youId;
@@ -230,16 +243,18 @@ function FinalScores({
         transition={{ type: "spring", stiffness: 200, damping: 20 }}
       >
         <div className="text-5xl">🏆</div>
-        <div className="mt-2 font-display text-2xl font-semibold text-cloud">Final scores</div>
+        <div className="mt-2 font-display text-2xl font-semibold text-cloud">
+          {t("pb.finalScores")}
+        </div>
         <div className="mt-4">
           <Scoreboard game={game} players={players} youId={youId} />
         </div>
         {isHost ? (
           <Button full className="mt-6" onClick={toLobby}>
-            Back to lobby
+            {t("common.backToLobby")}
           </Button>
         ) : (
-          <div className="mt-6 text-sm text-mist">Waiting for the host…</div>
+          <div className="mt-6 text-sm text-mist">{t("common.waitingHost")}</div>
         )}
       </GlassCard>
     </div>

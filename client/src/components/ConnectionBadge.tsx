@@ -1,16 +1,19 @@
 import { useStore } from "@/lib/store";
+import { useT } from "@/lib/useT";
 
-const MAP = {
-  online: { dot: "#6ee7d6", label: "Live" },
-  connecting: { dot: "#fbbf72", label: "Connecting…" },
-  offline: { dot: "#fca5a5", label: "Reconnecting…" },
+const DOT = {
+  online: "#6ee7d6",
+  connecting: "#fbbf72",
+  offline: "#fca5a5",
 } as const;
 
 export function ConnectionBadge() {
   const status = useStore((s) => s.status);
+  const t = useT();
   // Stay invisible while everything's healthy; only appear if the link drops.
   if (status === "online") return null;
-  const { dot, label } = MAP[status];
+  const label = status === "connecting" ? t("conn.connecting") : t("conn.reconnecting");
+  const dot = DOT[status];
   return (
     <div className="glass flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-mist">
       <span

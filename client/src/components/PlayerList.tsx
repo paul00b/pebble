@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Avatar } from "./primitives";
+import { useT } from "@/lib/useT";
 import type { Player } from "@shared";
 
 export function PlayerList({
@@ -15,6 +16,7 @@ export function PlayerList({
   canKick: boolean;
   onKick: (id: string) => void;
 }) {
+  const t = useT();
   return (
     <ul className="flex flex-col gap-2">
       <AnimatePresence initial={false}>
@@ -34,13 +36,13 @@ export function PlayerList({
                 <span className="truncate font-medium text-cloud">{p.name}</span>
                 {p.id === youId && (
                   <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[0.62rem] uppercase tracking-wider text-mist">
-                    you
+                    {t("common.you")}
                   </span>
                 )}
                 {p.id === hostId && <span title="Host" className="text-sm">👑</span>}
               </div>
               <div className="text-xs text-faint">
-                {p.connected ? "Ready" : "Reconnecting…"}
+                {p.connected ? t("lobby.ready") : t("lobby.reconnecting")}
               </div>
             </div>
             {canKick && p.id !== hostId && (

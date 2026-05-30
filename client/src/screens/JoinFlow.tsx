@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, Button, GlassCard } from "@/components/primitives";
 import { AVATARS, COLORS } from "@/lib/session";
 import { useStore } from "@/lib/store";
+import { useT } from "@/lib/useT";
 
 export type FlowMode = "create" | "join";
 
@@ -15,6 +16,7 @@ export function JoinFlow({
   initialCode?: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const identity = useStore((s) => s.identity);
   const setIdentity = useStore((s) => s.setIdentity);
   const createRoom = useStore((s) => s.createRoom);
@@ -29,9 +31,9 @@ export function JoinFlow({
 
   const submit = async () => {
     const trimmed = name.trim();
-    if (!trimmed) return setError("Pick a name first.");
+    if (!trimmed) return setError(t("join.errName"));
     if (mode === "join" && code.trim().length < 3)
-      return setError("Enter the room code your friend sent.");
+      return setError(t("join.errCode"));
 
     setBusy(true);
     setError(null);
@@ -79,26 +81,24 @@ export function JoinFlow({
         </button>
 
         <h2 className="font-display text-2xl font-semibold text-cloud">
-          {mode === "create" ? "Set up your room" : "Join your friends"}
+          {mode === "create" ? t("join.createTitle") : t("join.joinTitle")}
         </h2>
         <p className="mt-1 text-sm text-mist">
-          {mode === "create"
-            ? "Choose how you'll show up. You can pick a game once everyone's in."
-            : "Enter the code, pick how you'll show up, and hop in."}
+          {mode === "create" ? t("join.createSub") : t("join.joinSub")}
         </p>
 
         {/* Live preview */}
         <div className="mt-5 flex items-center gap-3 rounded-2xl bg-white/5 p-3">
           <Avatar emoji={avatar} color={color} size={48} ring />
           <div className="text-sm">
-            <div className="font-medium text-cloud">{name.trim() || "Your name"}</div>
-            <div className="text-faint">This is how others see you</div>
+            <div className="font-medium text-cloud">{name.trim() || t("join.yourName")}</div>
+            <div className="text-faint">{t("join.previewHint")}</div>
           </div>
         </div>
 
         {/* Name */}
         <label className="mt-5 block text-xs uppercase tracking-wider text-faint">
-          Name
+          {t("join.name")}
         </label>
         <input
           autoFocus
@@ -106,7 +106,7 @@ export function JoinFlow({
           maxLength={24}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder="e.g. Paul"
+          placeholder={t("join.namePh")}
           className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-cloud outline-none placeholder:text-faint focus:border-accent/50 focus:ring-2 focus:ring-accent/30"
         />
 
@@ -114,7 +114,7 @@ export function JoinFlow({
         {mode === "join" && (
           <>
             <label className="mt-4 block text-xs uppercase tracking-wider text-faint">
-              Room code
+              {t("join.code")}
             </label>
             <input
               value={code}
@@ -128,7 +128,7 @@ export function JoinFlow({
 
         {/* Avatar grid */}
         <div className="mt-5">
-          <div className="text-xs uppercase tracking-wider text-faint">Avatar</div>
+          <div className="text-xs uppercase tracking-wider text-faint">{t("join.avatar")}</div>
           <div className="mt-2 grid grid-cols-8 gap-1.5">
             {AVATARS.map((a) => (
               <button
@@ -146,7 +146,7 @@ export function JoinFlow({
 
         {/* Color */}
         <div className="mt-4">
-          <div className="text-xs uppercase tracking-wider text-faint">Color</div>
+          <div className="text-xs uppercase tracking-wider text-faint">{t("join.color")}</div>
           <div className="mt-2 flex flex-wrap gap-2">
             {COLORS.map((c) => (
               <button
@@ -178,7 +178,11 @@ export function JoinFlow({
         </AnimatePresence>
 
         <Button full className="mt-6" onClick={submit} disabled={busy}>
-          {busy ? "One sec…" : mode === "create" ? "Create room" : "Join room"}
+          {busy
+            ? t("common.oneSec")
+            : mode === "create"
+              ? t("join.createBtn")
+              : t("join.joinBtn")}
         </Button>
       </GlassCard>
     </motion.div>

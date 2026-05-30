@@ -1,10 +1,10 @@
 // ── Core domain types shared by client and server ──────────────────────────
 // This is the single source of truth for the shape of a room and its players.
 
-import type { GameView } from "./games";
+import type { GameView, Language } from "./games";
 
 /** Identifiers for every game the platform can host. */
-export type GameId = "bombparty" | "petitbac";
+export type GameId = "bombparty" | "petitbac" | "sixquiprend";
 
 /** High-level phase of a room. */
 export type RoomPhase = "lobby" | "playing" | "results";
@@ -53,6 +53,8 @@ export interface RoomState {
   phase: RoomPhase;
   hostId: string;
   selectedGame: GameId;
+  /** Language of game *content* (Bomb Party dictionary, Petit Bac categories). */
+  gameLanguage: Language;
   players: Player[];
   chat: ChatMessage[];
   /** Public projection of the in-progress game, or null while in the lobby. */
@@ -80,6 +82,15 @@ export const GAMES: GameMeta[] = [
     minPlayers: 2,
     maxPlayers: 12,
     duration: "8–15 min",
+  },
+  {
+    id: "sixquiprend",
+    name: "6 Qui Prend",
+    tagline: "Lay cards in rows — just don't take the sixth.",
+    emoji: "🐂",
+    minPlayers: 2,
+    maxPlayers: 10,
+    duration: "10–20 min",
   },
 ];
 

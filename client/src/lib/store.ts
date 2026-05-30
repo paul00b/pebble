@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { socket } from "./socket";
 import { loadIdentity, saveIdentity } from "./session";
+import { detectLocale, translate, type Locale } from "./i18n";
 import type {
   GameAction,
   GameId,
@@ -17,15 +18,29 @@ export interface Notice {
   text: string;
 }
 
+const LOCALE_KEY = "pebble.locale";
+function loadLocale(): Locale {
+  try {
+    const v = localStorage.getItem(LOCALE_KEY);
+    if (v === "en" || v === "fr") return v;
+  } catch {
+    /* ignore */
+  }
+  return detectLocale();
+}
+
 interface PebbleState {
   identity: PlayerIdentity;
   room: RoomState | null;
   youId: string | null;
   status: ConnStatus;
   notices: Notice[];
+  locale: Locale;
 
+  setLocale: (locale: Locale) => void;
   setIdentity: (patch: Partial<PlayerIdentity>) => void;
   createRoom: (game?: GameId) => Promise<JoinResult>;
+  setGameLanguage: (language: Locale) => void;
   joinRoom: (code: string) => Promise<JoinResult>;
   leaveRoom: () => void;
   selectGame: (game: GameId) => void;
@@ -48,6 +63,16 @@ export const useStore = create<PebbleState>((set, get) => ({
   youId: null,
   status: "connecting",
   notices: [],
+  locale: loadLocale(),
+
+  setLocale: (locale) => {
+    try {
+      localStorage.setItem(LOCALE_KEY, locale);
+    } catch {
+      /* ignore */
+    }
+    set({ locale });
+  },
 
   setIdentity: (patch) => {
     const next = { ...get().identity, ...patch };
@@ -57,7 +82,10 @@ export const useStore = create<PebbleState>((set, get) => ({
 
   createRoom: (game) =>
     new Promise<JoinResult>((resolve) => {
-      socket.emit("room:create", { identity: get().identity, game }, (res) => {
+      socket.emit(
+        "room:create",
+        { identity: get().identity, game, language: get().locale },
+        (res) => {
         if (res.ok) {
           activeCode = res.room.code;
           set({ room: res.room, youId: res.you });
@@ -88,6 +116,8 @@ export const useStore = create<PebbleState>((set, get) => ({
   },
 
   selectGame: (game) => socket.emit("room:selectGame", game),
+
+  setGameLanguage: (language) => socket.emit("room:setLanguage", language),
 
   start: () =>
     new Promise((resolve) => socket.emit("room:start", resolve)),
@@ -134,13 +164,15 @@ export function wireSocket() {
 
   socket.on("room:state", (room) => useStore.setState({ room }));
 
-  socket.on("room:notice", (notice) =>
-    useStore.getState().pushNotice(notice.kind, notice.text)
-  );
+  socket.on("room:notice", (notice) => {
+    const { locale, pushNotice } = useStore.getState();
+    pushNotice(notice.kind, translate(locale, notice.key, notice.params));
+  });
 
-  socket.on("room:closed", (reason) => {
+  socket.on("room:closed", () => {
     activeCode = null;
+    const { locale, pushNotice } = useStore.getState();
     useStore.setState({ room: null, youId: null });
-    useStore.getState().pushNotice("warn", reason || "Room closed.");
+    pushNotice("warn", translate(locale, "notice.roomClosed"));
   });
 }

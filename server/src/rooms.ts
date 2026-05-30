@@ -10,6 +10,7 @@ import {
   type ChatMessage,
   type GameAction,
   type GameId,
+  type Language,
   type Player,
   type PlayerIdentity,
   type RoomState,
@@ -25,6 +26,7 @@ interface Room {
   phase: RoomState["phase"];
   hostId: string;
   selectedGame: GameId;
+  gameLanguage: Language;
   /** Keyed by player sessionId. */
   players: Map<string, Player>;
   chat: ChatMessage[];
@@ -56,23 +58,37 @@ export class RoomManager {
     return this.rooms.has(code);
   }
 
-  /** Serialize a room into the client-facing snapshot. */
-  snapshot(code: string): RoomState | null {
+  /**
+   * Serialize a room into the client-facing snapshot. Pass `forPlayer` to get a
+   * personalized game view (hidden hands etc.) for games that support it.
+   */
+  snapshot(code: string, forPlayer?: string): RoomState | null {
     const room = this.rooms.get(code);
     if (!room) return null;
+    let game = null;
+    if (room.engine && room.gameState !== undefined) {
+      game =
+        forPlayer && room.engine.playerView
+          ? room.engine.playerView(room.gameState, forPlayer)
+          : room.engine.view(room.gameState);
+    }
     return {
       code: room.code,
       phase: room.phase,
       hostId: room.hostId,
       selectedGame: room.selectedGame,
+      gameLanguage: room.gameLanguage,
       players: [...room.players.values()].sort((a, b) => a.joinedAt - b.joinedAt),
       chat: room.chat,
-      game:
-        room.engine && room.gameState !== undefined
-          ? room.engine.view(room.gameState)
-          : null,
+      game,
       version: room.version,
     };
+  }
+
+  /** True if the active game serves personalized (per-player) views. */
+  hasPrivateViews(code: string): boolean {
+    const room = this.rooms.get(code);
+    return !!room?.engine?.playerView;
   }
 
   private touch(room: Room) {
@@ -92,7 +108,11 @@ export class RoomManager {
     };
   }
 
-  createRoom(identity: PlayerIdentity, game: GameId = "bombparty"): RoomState {
+  createRoom(
+    identity: PlayerIdentity,
+    game: GameId = "bombparty",
+    language: Language = "fr"
+  ): RoomState {
     const code = generateRoomCode(new Set(this.rooms.keys()));
     const host = this.makePlayer(identity, true);
     const room: Room = {
@@ -100,6 +120,7 @@ export class RoomManager {
       phase: "lobby",
       hostId: host.id,
       selectedGame: game,
+      gameLanguage: language,
       players: new Map([[host.id, host]]),
       chat: [],
       version: 0,
@@ -133,7 +154,7 @@ export class RoomManager {
       existing.avatar = identity.avatar || existing.avatar;
       existing.color = identity.color || existing.color;
       this.touch(room);
-      return { ok: true, room: this.snapshot(code)! };
+      return { ok: true, room: this.snapshot(code, identity.sessionId)! };
     }
 
     if (room.phase !== "lobby") {
@@ -209,6 +230,13 @@ export class RoomManager {
     this.touch(room);
   }
 
+  setLanguage(code: string, requesterId: string, language: Language) {
+    const room = this.rooms.get(code);
+    if (!room || room.hostId !== requesterId || room.phase !== "lobby") return;
+    room.gameLanguage = language;
+    this.touch(room);
+  }
+
   start(code: string, requesterId: string): { ok: boolean; reason?: string } {
     const room = this.rooms.get(code);
     if (!room) return { ok: false, reason: "Room not found." };
@@ -221,7 +249,9 @@ export class RoomManager {
       return { ok: false, reason: `Need at least ${meta.minPlayers} players.` };
     }
     room.engine = ENGINES[room.selectedGame];
-    room.gameState = room.engine.init(participants, Date.now());
+    room.gameState = room.engine.init(participants, Date.now(), {
+      language: room.gameLanguage,
+    });
     room.phase = "playing";
     this.touch(room);
     return { ok: true };
