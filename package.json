@@ -1,0 +1,27 @@
+{
+  "name": "pebble",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pebble — a free, beautiful website to play party minigames online with friends.",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm --workspace server run dev",
+    "dev:client": "npm --workspace client run dev",
+    "build": "npm --workspace client run build",
+    "start": "npm --workspace server run start",
+    "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p client/tsconfig.json --noEmit",
+    "test:engine": "tsx scripts/engine-test.ts",
+    "test:lobby": "node scripts/e2e.mjs",
+    "test:games": "node scripts/games-socket.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
