@@ -13,10 +13,12 @@ import {
   BOMB_BOUNDS,
   BOMB_DIFFICULTIES,
   CN_WORDS,
+  D9_BOUNDS,
   GAMES,
   gameById,
   type BombPartySettings,
   type CodenamesSettings,
+  type Devine9Settings,
   type RoomState,
 } from "@shared";
 
@@ -257,7 +259,10 @@ function GameRules({ room, isHost }: { room: RoomState; isHost: boolean }) {
   const t = useT();
   const updateSettings = useStore((s) => s.updateSettings);
   // Only some games expose host-tunable options; others just show how to play.
-  const editable = room.selectedGame === "bombparty" || room.selectedGame === "codenames";
+  const editable =
+    room.selectedGame === "bombparty" ||
+    room.selectedGame === "codenames" ||
+    room.selectedGame === "devine9";
 
   return (
     <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -281,6 +286,12 @@ function GameRules({ room, isHost }: { room: RoomState; isHost: boolean }) {
           s={room.settings.codenames}
           isHost={isHost}
           onChange={(patch) => updateSettings("codenames", patch)}
+        />
+      ) : room.selectedGame === "devine9" ? (
+        <Devine9Rules
+          s={room.settings.devine9}
+          isHost={isHost}
+          onChange={(patch) => updateSettings("devine9", patch)}
         />
       ) : room.selectedGame === "sixquiprend" ? (
         <RulesList prefix="sixqp" steps={["pick", "place", "sixth", "low", "win"]} />
@@ -446,6 +457,41 @@ function CodenamesRules({
           ? t("set.cn.ready", { n: count })
           : t("set.cn.need", { n: count, min: CN_WORDS.minToUse })}
       </p>
+    </div>
+  );
+}
+
+function Devine9Rules({
+  s,
+  isHost,
+  onChange,
+}: {
+  s: Devine9Settings;
+  isHost: boolean;
+  onChange: (patch: Record<string, number>) => void;
+}) {
+  const t = useT();
+  return (
+    <div className="flex flex-col gap-4">
+      <Stepper
+        label={t("set.d9.turnSec")}
+        value={s.turnSec}
+        step={5}
+        format={(v) => t("set.seconds", { n: v })}
+        min={D9_BOUNDS.turnSec.min}
+        max={D9_BOUNDS.turnSec.max}
+        disabled={!isHost}
+        onChange={(v) => onChange({ turnSec: v })}
+      />
+      <Stepper
+        label={t("set.d9.roundsPerTeam")}
+        value={s.roundsPerTeam}
+        min={D9_BOUNDS.roundsPerTeam.min}
+        max={D9_BOUNDS.roundsPerTeam.max}
+        disabled={!isHost}
+        onChange={(v) => onChange({ roundsPerTeam: v })}
+      />
+      <p className="text-xs leading-snug text-faint">{t("set.d9.hint")}</p>
     </div>
   );
 }

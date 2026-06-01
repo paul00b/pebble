@@ -5,6 +5,7 @@ import { SixQuiPrend } from "./SixQuiPrend";
 import { Codenames } from "./Codenames";
 import { Skyjo } from "./Skyjo";
 import { Gartic } from "./Gartic";
+import { Devine9 } from "./Devine9";
 import { useStore } from "@/lib/store";
 import { gameById, type RoomState } from "@shared";
 
@@ -24,6 +25,7 @@ export function GamePlay({ room, onLeave }: { room: RoomState; onLeave: () => vo
       {room.game?.kind === "codenames" && <Codenames room={room} />}
       {room.game?.kind === "skyjo" && <Skyjo room={room} />}
       {room.game?.kind === "gartic" && <Gartic room={room} />}
+      {room.game?.kind === "devine9" && <Devine9 room={room} />}
       {!room.game && (
         <div className="grid flex-1 place-items-center text-mist">Loading game…</div>
       )}

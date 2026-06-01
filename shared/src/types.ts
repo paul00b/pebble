@@ -11,7 +11,8 @@ export type GameId =
   | "sixquiprend"
   | "codenames"
   | "skyjo"
-  | "gartic";
+  | "gartic"
+  | "devine9";
 
 /** High-level phase of a room. */
 export type RoomPhase = "lobby" | "playing" | "results";
@@ -129,6 +130,15 @@ export const GAMES: GameMeta[] = [
     minPlayers: 2,
     maxPlayers: 12,
     duration: "10–20 min",
+  },
+  {
+    id: "devine9",
+    name: "Devine 9",
+    tagline: "Two teams, a theme, 9 answers to shout — but not the bomb word.",
+    emoji: "🎯",
+    minPlayers: 2,
+    maxPlayers: 12,
+    duration: "10–15 min",
   },
 ];
 

@@ -296,6 +296,59 @@ export type DrawOp =
   | { t: "fill"; x: number; y: number; c: string }
   | { t: "clear" };
 
+/* ── Devine 9 (guess 9) ──────────────────────────────────────────────────── */
+
+export type Devine9Team = "red" | "blue";
+export type Devine9Phase = "setup" | "play" | "reveal" | "over";
+
+export interface Devine9Member {
+  id: string;
+  team: Devine9Team | null;
+}
+
+export interface Devine9View {
+  kind: "devine9";
+  phase: Devine9Phase;
+  members: Devine9Member[];
+  /** Team currently guessing aloud. The other team holds the card (checker). */
+  activeTeam: Devine9Team;
+  /** 1-based current turn / total turns to play. */
+  turn: number;
+  totalTurns: number;
+  /** The theme prompt — shown to the checker team (play) and everyone (reveal). */
+  prompt: string | null;
+  /** The 9 answers — only revealed to the checker (play) or everyone (reveal). */
+  answers: string[] | null;
+  /** The bomb word — same visibility as `answers`. */
+  bomb: string | null;
+  /** Which of the 9 answers have been ticked (aligned to `answers`). */
+  found: boolean[];
+  foundCount: number;
+  /** Whether the bomb word has been said. */
+  bombHit: boolean;
+  /** Has the checker launched the timer yet? */
+  started: boolean;
+  /** Epoch ms when the turn ends (0 before the timer starts). */
+  deadline: number;
+  /** Configured turn length in seconds (for the timer ring). */
+  turnSec: number;
+  scores: Record<Devine9Team, number>;
+  /** Points scored on the just-finished turn (shown on the reveal). */
+  roundPoints: number | null;
+  youTeam: Devine9Team | null;
+  /** True when the viewer is on the team holding the card this turn. */
+  youAreChecker: boolean;
+  winner: Devine9Team | "tie" | null;
+}
+
+export type Devine9Action =
+  | { type: "setTeam"; team: Devine9Team }
+  | { type: "begin" }
+  | { type: "start" }
+  | { type: "validate"; index: number }
+  | { type: "bomb" }
+  | { type: "next" };
+
 /* ── Unions ──────────────────────────────────────────────────────────────── */
 
 export type GameView =
@@ -304,11 +357,13 @@ export type GameView =
   | SixQuiPrendView
   | CodenamesView
   | SkyjoView
-  | GarticView;
+  | GarticView
+  | Devine9View;
 export type GameAction =
   | BombPartyAction
   | PetitBacAction
   | SixQuiPrendAction
   | CodenamesAction
   | SkyjoAction
-  | GarticAction;
+  | GarticAction
+  | Devine9Action;

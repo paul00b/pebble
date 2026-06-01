@@ -25,11 +25,18 @@ export {
   BOMB_DIFFICULTIES,
   BOMB_BONUS_ALPHABET,
   CN_WORDS,
+  D9_BOUNDS,
   sanitizeBombParty,
   sanitizeCodenames,
+  sanitizeDevine9,
   sanitizeSettings,
 } from "./settings";
-export type { BombPartySettings, CodenamesSettings, AllSettings } from "./settings";
+export type {
+  BombPartySettings,
+  CodenamesSettings,
+  Devine9Settings,
+  AllSettings,
+} from "./settings";
 export { bullHeads } from "./games";
 export type {
   Language,
@@ -60,6 +67,11 @@ export type {
   GarticMessage,
   GarticView,
   GarticAction,
+  Devine9Team,
+  Devine9Phase,
+  Devine9Member,
+  Devine9View,
+  Devine9Action,
   DrawOp,
   GameView,
   GameAction,

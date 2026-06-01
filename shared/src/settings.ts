@@ -48,6 +48,20 @@ export interface CodenamesSettings {
 /** Limits for a custom Codenames word list, shared by client UI + server. */
 export const CN_WORDS = { minToUse: 25, maxWords: 400, maxLen: 24 } as const;
 
+/* ── Devine 9 ────────────────────────────────────────────────────────────── */
+
+export interface Devine9Settings {
+  /** Seconds a team gets to guess once the checker launches the timer. */
+  turnSec: number;
+  /** How many themes each team plays (total turns = roundsPerTeam × 2). */
+  roundsPerTeam: number;
+}
+
+export const D9_BOUNDS = {
+  turnSec: { min: 20, max: 120 },
+  roundsPerTeam: { min: 1, max: 8 },
+} as const;
+
 /** One settings object per game. Games without options use an empty object. */
 export interface AllSettings {
   bombparty: BombPartySettings;
@@ -56,6 +70,7 @@ export interface AllSettings {
   codenames: CodenamesSettings;
   skyjo: Record<string, never>;
   gartic: Record<string, never>;
+  devine9: Devine9Settings;
 }
 
 export const DEFAULT_SETTINGS: AllSettings = {
@@ -72,6 +87,7 @@ export const DEFAULT_SETTINGS: AllSettings = {
   codenames: { customWords: [] },
   skyjo: {},
   gartic: {},
+  devine9: { turnSec: 60, roundsPerTeam: 3 },
 };
 
 /** Editable ranges, shared by the client UI and server validation. */
@@ -129,6 +145,20 @@ export function sanitizeCodenames(patch: Partial<CodenamesSettings>): CodenamesS
   return { customWords };
 }
 
+/** Clamp an (untrusted) Devine 9 settings patch into valid, complete settings. */
+export function sanitizeDevine9(patch: Partial<Devine9Settings>): Devine9Settings {
+  const d = DEFAULT_SETTINGS.devine9;
+  return {
+    turnSec: clampInt(patch.turnSec, D9_BOUNDS.turnSec.min, D9_BOUNDS.turnSec.max, d.turnSec),
+    roundsPerTeam: clampInt(
+      patch.roundsPerTeam,
+      D9_BOUNDS.roundsPerTeam.min,
+      D9_BOUNDS.roundsPerTeam.max,
+      d.roundsPerTeam
+    ),
+  };
+}
+
 /** Merge a patch into a game's current settings and return validated settings. */
 export function sanitizeSettings<G extends GameId>(
   game: G,
@@ -140,6 +170,9 @@ export function sanitizeSettings<G extends GameId>(
   }
   if (game === "codenames") {
     return sanitizeCodenames({ ...(current as CodenamesSettings), ...patch } as Partial<CodenamesSettings>) as AllSettings[G];
+  }
+  if (game === "devine9") {
+    return sanitizeDevine9({ ...(current as Devine9Settings), ...patch } as Partial<Devine9Settings>) as AllSettings[G];
   }
   // Games without options ignore patches.
   return current;
