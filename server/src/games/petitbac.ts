@@ -1,7 +1,9 @@
 // Petit Bac — the simultaneous-round game. A letter + fixed categories; everyone
 // races to fill an answer for each that starts with the letter. A round ends on
-// the timer or when someone slams "Stop!". Scoring is automatic: a valid answer
-// scores 2 if no one else gave the same one, 1 if shared, 0 if blank/wrong.
+// the timer or when someone slams "Stop!". The table then *reviews* answers
+// category by category: every answer counts by default, and any player can click
+// one to invalidate it. Scoring runs once review wraps up — a still-valid answer
+// scores 2 if no one else gave the same one, 1 if shared, 0 if blank/struck out.
 
 import type { Player } from "../../../shared/src/types.js";
 import type {
@@ -9,6 +11,7 @@ import type {
   Language,
   PetitBacAction,
   PetitBacCell,
+  PetitBacReviewCell,
   PetitBacStage,
   PetitBacView,
 } from "../../../shared/src/games.js";
@@ -35,11 +38,17 @@ interface PBState {
   answers: Record<string, string[]>; // playerId -> answer per category
   submitted: Set<string>;
   stoppedBy: string | null;
+  /** Category currently under review (manual-validation stage). */
+  reviewIndex: number;
+  /** Struck-out answers, keyed `${categoryIndex}:${playerId}`. Absent = valid. */
+  invalid: Set<string>;
   scores: Record<string, number>;
   reveal?: PetitBacCell[][];
   roundScores?: Record<string, number>;
   over: boolean;
 }
+
+const cellKey = (category: number, playerId: string) => `${category}:${playerId}`;
 
 const randomLetter = () => LETTERS[Math.floor(Math.random() * LETTERS.length)];
 
@@ -51,26 +60,41 @@ function beginRound(state: PBState, round: number, now: number) {
   state.answers = {};
   state.submitted = new Set();
   state.stoppedBy = null;
+  state.reviewIndex = 0;
+  state.invalid = new Set();
   state.reveal = undefined;
   state.roundScores = undefined;
 }
 
-function endWriting(state: PBState) {
-  const letter = state.letter.toLowerCase();
+/** Writing is over — hand the table off to manual, category-by-category review. */
+function startReview(state: PBState) {
+  state.reviewIndex = 0;
+  state.invalid = new Set();
+  state.stage = "review";
+}
+
+/** Whether a player's answer in a category currently counts as valid. */
+function isValid(state: PBState, category: number, playerId: string): boolean {
+  const answer = (state.answers[playerId]?.[category] ?? "").trim();
+  if (normalize(answer).length === 0) return false; // blanks never count
+  return !state.invalid.has(cellKey(category, playerId));
+}
+
+/** Score every category from the (manually reviewed) validities, then reveal. */
+function finalizeScores(state: PBState) {
   const reveal: PetitBacCell[][] = [];
   const roundScores: Record<string, number> = {};
   for (const id of state.players) roundScores[id] = 0;
 
   state.categories.forEach((_cat, c) => {
-    // First pass: validity per player for this category.
-    const rows = state.players.map((id) => {
-      const answer = (state.answers[id]?.[c] ?? "").trim();
-      const norm = normalize(answer);
-      const valid = norm.length > 0 && norm.startsWith(letter);
-      return { id, answer, norm, valid };
-    });
+    const rows = state.players.map((id) => ({
+      id,
+      answer: (state.answers[id]?.[c] ?? "").trim(),
+      norm: normalize((state.answers[id]?.[c] ?? "").trim()),
+      valid: isValid(state, c, id),
+    }));
 
-    // Count occurrences of each valid normalized answer for uniqueness.
+    // Uniqueness among the answers still standing after review.
     const counts = new Map<string, number>();
     for (const r of rows) if (r.valid) counts.set(r.norm, (counts.get(r.norm) ?? 0) + 1);
 
@@ -78,13 +102,7 @@ function endWriting(state: PBState) {
       const unique = r.valid && counts.get(r.norm) === 1;
       const points = r.valid ? (unique ? 2 : 1) : 0;
       roundScores[r.id] += points;
-      return {
-        playerId: r.id,
-        answer: r.answer,
-        points,
-        valid: r.valid,
-        unique,
-      };
+      return { playerId: r.id, answer: r.answer, points, valid: r.valid, unique };
     });
     reveal.push(cells);
   });
@@ -111,6 +129,8 @@ export const petitBac: GameEngine<PBState> = {
       answers: {},
       submitted: new Set(),
       stoppedBy: null,
+      reviewIndex: 0,
+      invalid: new Set(),
       scores,
       over: false,
     };
@@ -128,27 +148,48 @@ export const petitBac: GameEngine<PBState> = {
         .slice(0, state.categories.length)
         .map((s) => String(s).slice(0, 40));
       state.submitted.add(playerId);
-      // Everyone locked in → reveal early.
-      if (state.players.every((id) => state.submitted.has(id))) endWriting(state);
+      // Everyone locked in → move to review early.
+      if (state.players.every((id) => state.submitted.has(id))) startReview(state);
       return true;
     }
 
     if (a.type === "stop") {
       if (state.stage !== "writing") return false;
       state.stoppedBy = playerId;
-      endWriting(state);
+      startReview(state);
+      return true;
+    }
+
+    if (a.type === "toggle") {
+      // Any player may strike out / restore an answer, but only in the category
+      // currently on screen, and only if the target actually wrote something.
+      if (state.stage !== "review" || a.category !== state.reviewIndex) return false;
+      const answer = (state.answers[a.playerId]?.[a.category] ?? "").trim();
+      if (normalize(answer).length === 0) return false;
+      const key = cellKey(a.category, a.playerId);
+      if (state.invalid.has(key)) state.invalid.delete(key);
+      else state.invalid.add(key);
       return true;
     }
 
     if (a.type === "next") {
-      if (state.stage !== "reveal" || !ctx.isHost) return false;
-      if (state.round >= state.totalRounds) {
-        state.stage = "done";
-        state.over = true;
-      } else {
-        beginRound(state, state.round + 1, ctx.now);
+      if (!ctx.isHost) return false;
+      if (state.stage === "review") {
+        // Step to the next category, or wrap up and tally the scores.
+        if (state.reviewIndex < state.categories.length - 1) state.reviewIndex += 1;
+        else finalizeScores(state);
+        return true;
       }
-      return true;
+      if (state.stage === "reveal") {
+        if (state.round >= state.totalRounds) {
+          state.stage = "done";
+          state.over = true;
+        } else {
+          beginRound(state, state.round + 1, ctx.now);
+        }
+        return true;
+      }
+      return false;
     }
 
     return false;
@@ -157,7 +198,7 @@ export const petitBac: GameEngine<PBState> = {
   tick(state, now): boolean {
     if (state.over) return false;
     if (state.stage === "writing" && now >= state.deadline) {
-      endWriting(state);
+      startReview(state);
       return true;
     }
     return false;
@@ -174,9 +215,9 @@ export const petitBac: GameEngine<PBState> = {
       state.over = true;
       return true;
     }
-    // If the leaver was the last holdout, the round can resolve now.
+    // If the leaver was the last holdout, the round can move on now.
     if (state.stage === "writing" && state.players.every((id) => state.submitted.has(id))) {
-      endWriting(state);
+      startReview(state);
     }
     return true;
   },
@@ -184,6 +225,22 @@ export const petitBac: GameEngine<PBState> = {
   isOver: (state) => state.over,
 
   view(state): PetitBacView {
+    let review: PetitBacView["review"];
+    if (state.stage === "review") {
+      const c = state.reviewIndex;
+      const cells: PetitBacReviewCell[] = state.players.map((id) => ({
+        playerId: id,
+        answer: (state.answers[id]?.[c] ?? "").trim(),
+        valid: isValid(state, c, id),
+      }));
+      review = {
+        index: c,
+        total: state.categories.length,
+        category: state.categories[c],
+        cells,
+      };
+    }
+
     return {
       kind: "petitbac",
       stage: state.stage,
@@ -195,6 +252,7 @@ export const petitBac: GameEngine<PBState> = {
       finishedCount: state.submitted.size,
       totalPlayers: state.players.length,
       stoppedBy: state.stoppedBy,
+      review,
       reveal: state.reveal,
       roundScores: state.roundScores,
       scores: state.scores,

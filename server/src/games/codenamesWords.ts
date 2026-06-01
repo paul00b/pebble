@@ -35,9 +35,11 @@ const FR = [
 
 const BANKS: Record<Language, string[]> = { en: EN, fr: FR };
 
-/** Pick 25 distinct words for a board. */
-export function pickCodenamesWords(language: Language): string[] {
-  const pool = [...BANKS[language]];
+/** Pick 25 distinct words for a board. A host-supplied list with at least 25
+ *  words takes over; otherwise the built-in bank for the language is used. */
+export function pickCodenamesWords(language: Language, custom?: string[]): string[] {
+  const source = custom && custom.length >= 25 ? custom : BANKS[language];
+  const pool = [...source];
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];

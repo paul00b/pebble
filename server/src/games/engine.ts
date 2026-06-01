@@ -14,6 +14,8 @@ export interface ActionContext {
 export interface InitOptions {
   /** Game-content language chosen for the room. */
   language: Language;
+  /** Host-configured rules for this game (game-specific shape; may be absent). */
+  settings?: unknown;
 }
 
 export interface GameEngine<State = unknown> {

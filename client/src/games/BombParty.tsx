@@ -5,6 +5,7 @@ import { Confetti } from "@/components/Confetti";
 import { useStore } from "@/lib/store";
 import { useT } from "@/lib/useT";
 import { remaining, useClock } from "@/lib/useClock";
+import { BOMB_BONUS_ALPHABET } from "@shared";
 import type { BombPartyView, Player, RoomState } from "@shared";
 
 export function BombParty({ room }: { room: RoomState }) {
@@ -83,11 +84,15 @@ export function BombParty({ room }: { room: RoomState }) {
           .map((p) => {
             const isCurrent = p.id === game.current;
             const lives = game.lives[p.id] ?? 0;
+            const recent = game.recent[p.id];
+            const last = game.lastEvent;
+            const bonus =
+              !!recent && last?.type === "valid" && last.playerId === p.id && !!last.bonus && last.at === recent.at;
             return (
               <motion.div
                 key={p.id}
                 animate={{ scale: isCurrent ? 1.06 : 1 }}
-                className={`flex items-center gap-2 rounded-2xl px-3 py-2 ${
+                className={`relative flex items-center gap-2 rounded-2xl px-3 py-2 ${
                   isCurrent ? "glass-strong" : "glass"
                 }`}
                 style={
@@ -96,11 +101,12 @@ export function BombParty({ room }: { room: RoomState }) {
                     : undefined
                 }
               >
+                <RecentChip entry={recent} bonus={bonus} clock={clock} />
                 <Avatar emoji={p.avatar} color={p.color} size={34} />
                 <div>
                   <div className="text-sm font-medium text-cloud">{p.name}</div>
                   <div className="text-xs leading-none">
-                    {Array.from({ length: game.startLives }).map((_, i) => (
+                    {Array.from({ length: game.maxLives }).map((_, i) => (
                       <span key={i} style={{ opacity: i < lives ? 1 : 0.25 }}>
                         ❤️
                       </span>
@@ -193,7 +199,96 @@ export function BombParty({ room }: { room: RoomState }) {
             </div>
           </div>
         )}
+        {youId && game.order.includes(youId) && (
+          <div className="mt-4">
+            <AlphabetStrip used={game.alphabet[youId] ?? ""} hint={t("bomb.alphabetHint")} />
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+/** Split a word into [before, matched-syllable, after], accent-insensitively, so
+ *  the matched syllable can be highlighted in the player's actual spelling. */
+function splitSyllable(word: string, syllable: string): [string, string, string] | null {
+  const strip = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const map: number[] = []; // normalized-char-index → original-char-index
+  let norm = "";
+  for (let i = 0; i < word.length; i++) {
+    const n = strip(word[i]);
+    for (let k = 0; k < n.length; k++) map.push(i);
+    norm += n;
+  }
+  const target = strip(syllable);
+  const at = norm.indexOf(target);
+  if (at < 0) return null;
+  const start = map[at];
+  const end = map[at + target.length - 1] + 1;
+  return [word.slice(0, start), word.slice(start, end), word.slice(end)];
+}
+
+function SyllableWord({ word, syllable }: { word: string; syllable: string }) {
+  const seg = splitSyllable(word, syllable);
+  if (!seg) return <span>{word}</span>;
+  const [before, match, after] = seg;
+  return (
+    <span>
+      {before}
+      <span className="rounded bg-accent/30 px-0.5 text-accent">{match}</span>
+      {after}
+    </span>
+  );
+}
+
+/** Floats a player's most recent accepted word above their card for a moment. */
+function RecentChip({
+  entry,
+  bonus,
+  clock,
+}: {
+  entry?: { word: string; syllable: string; at: number };
+  bonus: boolean;
+  clock: number;
+}) {
+  const show = !!entry && clock - entry.at < 2600;
+  return (
+    <AnimatePresence>
+      {show && entry && (
+        <motion.div
+          key={entry.at}
+          initial={{ opacity: 0, y: 6, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ type: "spring", stiffness: 360, damping: 24 }}
+          className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-lg glass-strong px-2.5 py-1 text-sm font-medium shadow-lg"
+        >
+          <SyllableWord word={entry.word} syllable={entry.syllable} />
+          {bonus && <span className="ml-1">❤️</span>}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/** The local player's bonus-alphabet progress (lit letters = banked). */
+function AlphabetStrip({ used, hint }: { used: string; hint: string }) {
+  const set = new Set(used);
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="flex flex-wrap justify-center gap-0.5">
+        {BOMB_BONUS_ALPHABET.map((c) => (
+          <span
+            key={c}
+            className={`grid h-5 w-5 place-items-center rounded text-[0.7rem] font-semibold uppercase transition-colors ${
+              set.has(c) ? "bg-accent/30 text-accent" : "bg-white/5 text-faint"
+            }`}
+          >
+            {c}
+          </span>
+        ))}
+      </div>
+      <span className="text-[0.65rem] text-faint">{hint}</span>
     </div>
   );
 }

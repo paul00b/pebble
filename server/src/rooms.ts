@@ -4,9 +4,13 @@
 
 import { generateRoomCode } from "./roomCode.js";
 import { ENGINES } from "./games/registry.js";
+import { randomWord } from "./games/garticWords.js";
 import type { GameEngine } from "./games/engine.js";
 import {
+  DEFAULT_SETTINGS,
   gameById,
+  sanitizeSettings,
+  type AllSettings,
   type ChatMessage,
   type DrawOp,
   type GameAction,
@@ -21,6 +25,11 @@ import {
 const RECONNECT_GRACE_MS = 30_000;
 /** Max chat lines retained per room. */
 const CHAT_HISTORY = 50;
+/** Max lobby-whiteboard ops retained (oldest dropped past this). */
+const MAX_BOARD_OPS = 8000;
+
+const freshSettings = (): AllSettings =>
+  JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as AllSettings;
 
 interface Room {
   code: string;
@@ -28,6 +37,11 @@ interface Room {
   hostId: string;
   selectedGame: GameId;
   gameLanguage: Language;
+  /** Host-configured rules for every game. */
+  settings: AllSettings;
+  /** Lobby whiteboard: shared strokes + the "draw this" prompt word. */
+  boardOps: DrawOp[];
+  boardWord: string;
   /** Keyed by player sessionId. */
   players: Map<string, Player>;
   chat: ChatMessage[];
@@ -79,6 +93,8 @@ export class RoomManager {
       hostId: room.hostId,
       selectedGame: room.selectedGame,
       gameLanguage: room.gameLanguage,
+      settings: room.settings,
+      boardWord: room.boardWord,
       players: [...room.players.values()].sort((a, b) => a.joinedAt - b.joinedAt),
       chat: room.chat,
       game,
@@ -95,6 +111,15 @@ export class RoomManager {
   private touch(room: Room) {
     room.version++;
     this.onChange(room.code);
+  }
+
+  /** Effective join cap: the game's hard max, tightened by any host setting. */
+  private maxPlayersFor(room: Room): number {
+    const meta = gameById(room.selectedGame);
+    if (room.selectedGame === "bombparty") {
+      return Math.min(meta.maxPlayers, room.settings.bombparty.maxPlayers);
+    }
+    return meta.maxPlayers;
   }
 
   private makePlayer(identity: PlayerIdentity, isHost: boolean): Player {
@@ -122,6 +147,9 @@ export class RoomManager {
       hostId: host.id,
       selectedGame: game,
       gameLanguage: language,
+      settings: freshSettings(),
+      boardOps: [],
+      boardWord: randomWord(language),
       players: new Map([[host.id, host]]),
       chat: [],
       version: 0,
@@ -161,9 +189,9 @@ export class RoomManager {
     if (room.phase !== "lobby") {
       return { ok: false, reason: "That game is already in progress." };
     }
-    const meta = gameById(room.selectedGame);
-    if (room.players.size >= meta.maxPlayers) {
-      return { ok: false, reason: `Room is full (max ${meta.maxPlayers}).` };
+    const cap = this.maxPlayersFor(room);
+    if (room.players.size >= cap) {
+      return { ok: false, reason: `Room is full (max ${cap}).` };
     }
 
     room.players.set(identity.sessionId, this.makePlayer(identity, false));
@@ -235,6 +263,21 @@ export class RoomManager {
     const room = this.rooms.get(code);
     if (!room || room.hostId !== requesterId || room.phase !== "lobby") return;
     room.gameLanguage = language;
+    // Keep the whiteboard prompt in the room's game-content language.
+    room.boardWord = randomWord(language);
+    this.touch(room);
+  }
+
+  /** Host edits a game's rules. The patch is clamped/validated server-side. */
+  updateSettings(
+    code: string,
+    requesterId: string,
+    game: GameId,
+    patch: Record<string, unknown>
+  ) {
+    const room = this.rooms.get(code);
+    if (!room || room.hostId !== requesterId || room.phase !== "lobby") return;
+    room.settings[game] = sanitizeSettings(game, room.settings[game], patch) as never;
     this.touch(room);
   }
 
@@ -252,6 +295,7 @@ export class RoomManager {
     room.engine = ENGINES[room.selectedGame];
     room.gameState = room.engine.init(participants, Date.now(), {
       language: room.gameLanguage,
+      settings: room.settings[room.selectedGame],
     });
     room.phase = "playing";
     this.touch(room);
@@ -292,6 +336,35 @@ export class RoomManager {
     const room = this.rooms.get(code);
     if (!room?.engine?.drawOps || room.gameState === undefined) return [];
     return room.engine.drawOps(room.gameState);
+  }
+
+  /** A stroke on the shared lobby whiteboard. Any room member may draw. Returns
+   *  true if accepted → relay it to everyone else. */
+  boardOp(code: string, sessionId: string, op: DrawOp): boolean {
+    const room = this.rooms.get(code);
+    if (!room || !room.players.has(sessionId)) return false;
+    if (op.t === "clear") {
+      room.boardOps = [];
+      return true;
+    }
+    room.boardOps.push(op);
+    if (room.boardOps.length > MAX_BOARD_OPS) {
+      room.boardOps.splice(0, room.boardOps.length - MAX_BOARD_OPS);
+    }
+    return true;
+  }
+
+  /** The current lobby whiteboard strokes (for late join / reconnect sync). */
+  boardOps(code: string): DrawOp[] {
+    return this.rooms.get(code)?.boardOps ?? [];
+  }
+
+  /** Shuffle the whiteboard's prompt word (any member may do this). */
+  newBoardWord(code: string, sessionId: string) {
+    const room = this.rooms.get(code);
+    if (!room || !room.players.has(sessionId)) return;
+    room.boardWord = randomWord(room.gameLanguage);
+    this.touch(room);
   }
 
   /** Drive every active game's time-based state. Called on a fixed interval. */

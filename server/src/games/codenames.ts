@@ -63,9 +63,10 @@ export const codenames: GameEngine<CNState> = {
     players.forEach((p, i) => {
       members[p.id] = { team: i % 2 === 0 ? "red" : "blue", role: "operative" };
     });
+    const settings = (opts.settings ?? {}) as { customWords?: string[] };
     return {
       phase: "setup",
-      words: pickCodenamesWords(opts.language),
+      words: pickCodenamesWords(opts.language, settings.customWords),
       key: buildKey(startTeam),
       revealed: Array(25).fill(null),
       members,

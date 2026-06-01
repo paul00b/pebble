@@ -19,14 +19,16 @@ export function normalize(input: string): string {
 
 interface Lang {
   words: Set<string>;
-  /** Syllables (2–3 letters) that appear in enough words to be solvable. */
-  prompts: string[];
+  /** counts[substring] = number of distinct words containing it (≤ ~18k keys). */
+  counts: Map<string, number>;
+  /** Eligible-syllable pools, lazily built + cached per rarity threshold. */
+  pools: Map<number, string[]>;
 }
 
 const cache = new Map<Language, Lang>();
 
-/** A syllable must appear in at least this many distinct words to be used. */
-const MIN_WORDS_PER_PROMPT = 400;
+/** Hard floor on the syllable pool — never let a custom threshold starve it. */
+const MIN_POOL = 60;
 
 function build(language: Language): Lang {
   const source: string[] =
@@ -35,7 +37,6 @@ function build(language: Language): Lang {
       : require("an-array-of-english-words");
 
   const words = new Set<string>();
-  // counts[substring] = number of distinct words containing it (≤ ~18k keys).
   const counts = new Map<string, number>();
 
   for (const raw of source) {
@@ -43,6 +44,7 @@ function build(language: Language): Lang {
     if (w.length < 3) continue;
     words.add(w);
 
+    // Syllables of 2 or 3 letters — the game shows a mix of both lengths.
     const seen = new Set<string>();
     for (let len = 2; len <= 3; len++) {
       for (let i = 0; i + len <= w.length; i++) seen.add(w.slice(i, i + len));
@@ -50,10 +52,7 @@ function build(language: Language): Lang {
     for (const s of seen) counts.set(s, (counts.get(s) ?? 0) + 1);
   }
 
-  const prompts: string[] = [];
-  for (const [s, c] of counts) if (c >= MIN_WORDS_PER_PROMPT) prompts.push(s);
-
-  return { words, prompts };
+  return { words, counts, pools: new Map() };
 }
 
 function get(language: Language): Lang {
@@ -64,10 +63,29 @@ function get(language: Language): Lang {
     cache.set(language, lang);
     console.log(
       `  📖 dictionary[${language}] ready: ${lang.words.size} words, ` +
-        `${lang.prompts.length} prompts (${Date.now() - t0}ms)`
+        `${lang.counts.size} syllables (${Date.now() - t0}ms)`
     );
   }
   return lang;
+}
+
+/** The syllable pool at a given rarity threshold (built once, then cached). A
+ *  threshold yielding too few syllables is relaxed so a round always has fuel. */
+function pool(language: Language, minWords: number): string[] {
+  const lang = get(language);
+  const cached = lang.pools.get(minWords);
+  if (cached) return cached;
+
+  let threshold = minWords;
+  let prompts: string[] = [];
+  while (threshold > 1) {
+    prompts = [];
+    for (const [s, c] of lang.counts) if (c >= threshold) prompts.push(s);
+    if (prompts.length >= MIN_POOL) break;
+    threshold = Math.floor(threshold / 2); // too rare — loosen and retry
+  }
+  lang.pools.set(minWords, prompts);
+  return prompts;
 }
 
 /** Warm a language's dictionary ahead of time (called at boot). */
@@ -75,9 +93,9 @@ export function preload(language: Language): void {
   get(language);
 }
 
-/** Random solvable syllable for the given language. */
-export function randomPrompt(language: Language): string {
-  const { prompts } = get(language);
+/** Random solvable syllable at the given rarity (lower minWords = rarer/harder). */
+export function randomPrompt(language: Language, minWords = 500): string {
+  const prompts = pool(language, minWords);
   return prompts[Math.floor(Math.random() * prompts.length)].toUpperCase();
 }
 

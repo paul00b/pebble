@@ -14,10 +14,22 @@ export type {
   CreateRoomPayload,
   JoinRoomPayload,
   JoinResult,
+  UpdateSettingsPayload,
   ClientToServerEvents,
   ServerToClientEvents,
   SocketData,
 } from "./protocol";
+export {
+  DEFAULT_SETTINGS,
+  BOMB_BOUNDS,
+  BOMB_DIFFICULTIES,
+  BOMB_BONUS_ALPHABET,
+  CN_WORDS,
+  sanitizeBombParty,
+  sanitizeCodenames,
+  sanitizeSettings,
+} from "./settings";
+export type { BombPartySettings, CodenamesSettings, AllSettings } from "./settings";
 export { bullHeads } from "./games";
 export type {
   Language,
@@ -25,6 +37,7 @@ export type {
   BombPartyAction,
   PetitBacStage,
   PetitBacCell,
+  PetitBacReviewCell,
   PetitBacView,
   PetitBacAction,
   SixPlayerPublic,

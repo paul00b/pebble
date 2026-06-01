@@ -5,15 +5,19 @@ import { SixQuiPrend } from "./SixQuiPrend";
 import { Codenames } from "./Codenames";
 import { Skyjo } from "./Skyjo";
 import { Gartic } from "./Gartic";
+import { useStore } from "@/lib/store";
 import { gameById, type RoomState } from "@shared";
 
 /** Renders the active game for a room whose phase is "playing". */
 export function GamePlay({ room, onLeave }: { room: RoomState; onLeave: () => void }) {
   const meta = gameById(room.selectedGame);
   const title = `${meta.emoji} ${meta.name}`;
+  const youId = useStore((s) => s.youId);
+  const toLobby = useStore((s) => s.toLobby);
+  const isHost = room.hostId === youId;
 
   return (
-    <GameShell title={title} onLeave={onLeave}>
+    <GameShell title={title} onLeave={onLeave} isHost={isHost} onEndGame={toLobby}>
       {room.game?.kind === "bombparty" && <BombParty room={room} />}
       {room.game?.kind === "petitbac" && <PetitBac room={room} />}
       {room.game?.kind === "sixquiprend" && <SixQuiPrend room={room} />}

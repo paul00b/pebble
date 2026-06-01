@@ -44,6 +44,8 @@ interface PebbleState {
   joinRoom: (code: string) => Promise<JoinResult>;
   leaveRoom: () => void;
   selectGame: (game: GameId) => void;
+  updateSettings: (game: GameId, patch: Record<string, unknown>) => void;
+  newBoardWord: () => void;
   start: () => Promise<{ ok: boolean; reason?: string }>;
   toLobby: () => void;
   gameAction: (action: GameAction) => void;
@@ -116,6 +118,11 @@ export const useStore = create<PebbleState>((set, get) => ({
   },
 
   selectGame: (game) => socket.emit("room:selectGame", game),
+
+  updateSettings: (game, patch) =>
+    socket.emit("room:updateSettings", { game, patch }),
+
+  newBoardWord: () => socket.emit("board:newWord"),
 
   setGameLanguage: (language) => socket.emit("room:setLanguage", language),
 

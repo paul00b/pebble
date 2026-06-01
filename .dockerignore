@@ -1,0 +1,12 @@
+# Keep the build context small + let the image install deps fresh.
+node_modules
+**/node_modules
+client/dist
+.git
+.gitignore
+*.log
+.DS_Store
+.vscode
+.idea
+.claude
+plan.md

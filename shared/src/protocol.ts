@@ -5,6 +5,14 @@
 import type { GameId, RoomState } from "./types";
 import type { DrawOp, GameAction, Language } from "./games";
 
+/** Patch to a single game's host-configured rules. */
+export interface UpdateSettingsPayload {
+  game: GameId;
+  /** Partial set of setting values (numbers, or e.g. a custom word list); the
+   *  server clamps/sanitizes + validates per game. */
+  patch: Record<string, unknown>;
+}
+
 /** Identity a client presents when creating or joining a room. */
 export interface PlayerIdentity {
   /** Persisted client-side; lets a refresh reclaim the same seat. */
@@ -45,6 +53,8 @@ export interface ClientToServerEvents {
   "room:selectGame": (game: GameId) => void;
   /** Host sets the game-content language (Bomb Party dict, Petit Bac categories). */
   "room:setLanguage": (language: Language) => void;
+  /** Host tweaks a game's rules (start lives, timers, …). */
+  "room:updateSettings": (payload: UpdateSettingsPayload) => void;
   "room:start": (ack: (result: { ok: boolean; reason?: string }) => void) => void;
   /** Host returns the room to the lobby (e.g. after a game ends). */
   "room:toLobby": () => void;
@@ -56,6 +66,12 @@ export interface ClientToServerEvents {
   "draw:op": (op: DrawOp) => void;
   /** Ask the server for the current drawing (e.g. after joining mid-round). */
   "draw:request": () => void;
+  /** A stroke on the shared lobby whiteboard (anyone can draw). */
+  "board:op": (op: DrawOp) => void;
+  /** Ask the server for the current lobby whiteboard (late join / reconnect). */
+  "board:request": () => void;
+  /** Shuffle the lobby whiteboard's "draw this" prompt word. */
+  "board:newWord": () => void;
 }
 
 /** Events the server emits to clients. */
@@ -73,6 +89,9 @@ export interface ServerToClientEvents {
   /** A relayed drawing op (Gartic), or the full op list as a sync. */
   "draw:op": (op: DrawOp) => void;
   "draw:sync": (ops: DrawOp[]) => void;
+  /** A relayed lobby-whiteboard stroke, or the full op list as a sync. */
+  "board:op": (op: DrawOp) => void;
+  "board:sync": (ops: DrawOp[]) => void;
 }
 
 /** Per-socket data the server tracks. */

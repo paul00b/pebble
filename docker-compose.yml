@@ -1,0 +1,14 @@
+services:
+  pebble:
+    build: .
+    image: pebble:latest
+    container_name: pebble
+    restart: unless-stopped
+    ports:
+      # host:container — Cloudflare points at the host side (3001).
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      # Single-origin app, so CORS can stay open. To lock the Socket.IO
+      # handshake to your domain, set this to your public URL, e.g.:
+      # - CLIENT_ORIGIN=https://pebble.example.com

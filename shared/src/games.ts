@@ -25,11 +25,22 @@ export interface BombPartyView {
   lives: Record<string, number>;
   /** Lives every player started with (for heart rows). */
   startLives: number;
+  /** Hard cap on lives (heart row length; bonus lives can grow up to here). */
+  maxLives: number;
+  /** Bonus-alphabet letters each player has banked so far (normalized a–z). */
+  alphabet: Record<string, string>;
+  /** Each player's most recently accepted word + the syllable it matched —
+   *  floated above their avatar for a moment. */
+  recent: Record<string, { word: string; syllable: string; at: number }>;
   /** Last thing that happened, for feedback + animation cues. */
   lastEvent?: {
     type: "valid" | "invalid" | "used" | "explode";
     playerId: string;
     word?: string;
+    /** The syllable a valid word matched (so the client can highlight it). */
+    syllable?: string;
+    /** True when this valid word completed the alphabet → a life was gained. */
+    bonus?: boolean;
     at: number;
   };
   /** Bomb number (increments each explosion). */
@@ -44,7 +55,7 @@ export type BombPartyAction =
 
 /* ── Petit Bac ───────────────────────────────────────────────────────────── */
 
-export type PetitBacStage = "writing" | "reveal" | "done";
+export type PetitBacStage = "writing" | "review" | "reveal" | "done";
 
 export interface PetitBacCell {
   playerId: string;
@@ -52,6 +63,14 @@ export interface PetitBacCell {
   points: number;
   valid: boolean;
   unique: boolean;
+}
+
+/** One answer being checked during the manual-validation stage. */
+export interface PetitBacReviewCell {
+  playerId: string;
+  answer: string;
+  /** Currently counted as valid? Defaults to true; anyone can toggle it off. */
+  valid: boolean;
 }
 
 export interface PetitBacView {
@@ -68,6 +87,13 @@ export interface PetitBacView {
   totalPlayers: number;
   /** Player id who slammed "Stop!", if any. */
   stoppedBy?: string | null;
+  /** During "review": the single category being checked + everyone's answer. */
+  review?: {
+    index: number;
+    total: number;
+    category: string;
+    cells: PetitBacReviewCell[];
+  };
   /** Reveal grid: reveal[categoryIndex] = rows of cells. */
   reveal?: PetitBacCell[][];
   /** Points scored this round, per player id. */
@@ -80,6 +106,8 @@ export interface PetitBacView {
 export type PetitBacAction =
   | { type: "submit"; answers: string[] }
   | { type: "stop" }
+  /** Flip a word's validity during review (any player; current category only). */
+  | { type: "toggle"; category: number; playerId: string }
   | { type: "next" };
 
 /* ── 6 Qui Prend (6 nimmt!) ──────────────────────────────────────────────── */
@@ -259,9 +287,13 @@ export type GarticAction =
   | { type: "guess"; text: string }
   | { type: "next" };
 
-/** Real-time drawing operation (normalized 0–1 coordinates). */
+/** Real-time drawing operation (normalized 0–1 coordinates). `w` is stroke
+ *  width as a fraction of canvas width; `c` is the colour (eraser = background). */
 export type DrawOp =
   | { t: "line"; x0: number; y0: number; x1: number; y1: number; c: string; w: number }
+  | { t: "rect"; x0: number; y0: number; x1: number; y1: number; c: string; w: number }
+  | { t: "ellipse"; x0: number; y0: number; x1: number; y1: number; c: string; w: number }
+  | { t: "fill"; x: number; y: number; c: string }
   | { t: "clear" };
 
 /* ── Unions ──────────────────────────────────────────────────────────────── */

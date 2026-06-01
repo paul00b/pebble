@@ -1,7 +1,9 @@
 // Bomb Party — the live-turn game. A bomb passes around the circle; the holder
 // must type a real word containing the given syllable before the fuse runs out.
 // The fuse PERSISTS across passes (classic, tense) and only resets when the
-// bomb explodes. Server owns the timer; clients just animate toward `deadline`.
+// bomb explodes — but every pass is guaranteed at least `minTurnMs` (the host's
+// "minimum turn duration"), so a fast pass can never instantly kill the next
+// player. Server owns the timer; clients just animate toward `deadline`.
 
 import type { Player } from "../../../shared/src/types.js";
 import type {
@@ -12,29 +14,47 @@ import type {
 } from "../../../shared/src/games.js";
 import type { ActionContext, GameEngine, InitOptions } from "./engine.js";
 import { isValidWord, normalize, preload, randomPrompt } from "./dictionary.js";
+import {
+  BOMB_BONUS_ALPHABET,
+  sanitizeBombParty,
+  type BombPartySettings,
+} from "../../../shared/src/settings.js";
 
-const START_LIVES = 2;
-const MIN_FUSE_MS = 10_000;
-const MAX_FUSE_MS = 26_000;
+/** Extra randomness on top of the guaranteed minimum, at each fresh bomb. */
+const FUSE_SPREAD_MS = 20_000;
+const BONUS_SET = new Set(BOMB_BONUS_ALPHABET);
 
 interface BombState {
   language: Language;
   order: string[]; // alive players, in seating order
   current: string;
   prompt: string;
+  /** How many turns the current syllable has already survived. */
+  promptAge: number;
   typed: string;
   deadline: number;
   fuseStart: number;
   lives: Record<string, number>;
   used: Set<string>;
+  /** Bonus-alphabet letters banked per player (resets when the bonus fires). */
+  letters: Record<string, Set<string>>;
+  /** Most recent accepted word per player (for the floating chip). */
+  recent: Record<string, { word: string; syllable: string; at: number }>;
   lastEvent?: BombPartyView["lastEvent"];
   round: number;
   over: boolean;
   winnerId: string | null;
+  /** Host-configured rules, baked in at init (so mid-game changes don't apply). */
+  minWordsPerPrompt: number;
+  minTurnMs: number;
+  syllableMaxAge: number;
+  startLives: number;
+  maxLives: number;
 }
 
-const randomFuse = (now: number) =>
-  now + MIN_FUSE_MS + Math.floor(Math.random() * (MAX_FUSE_MS - MIN_FUSE_MS));
+/** A fresh bomb: the guaranteed minimum plus a random spread. */
+const freshFuse = (now: number, minMs: number) =>
+  now + minMs + Math.floor(Math.random() * FUSE_SPREAD_MS);
 
 function nextAlive(order: string[], current: string): string {
   const i = order.indexOf(current);
@@ -44,23 +64,39 @@ function nextAlive(order: string[], current: string): string {
 export const bombParty: GameEngine<BombState> = {
   init(players: Player[], now: number, opts: InitOptions): BombState {
     const language: Language = opts.language;
+    const rules: BombPartySettings = sanitizeBombParty(
+      (opts.settings ?? {}) as Partial<BombPartySettings>
+    );
+    const minTurnMs = rules.minTurnSec * 1000;
     preload(language);
     const order = players.map((p) => p.id);
     const lives: Record<string, number> = {};
-    for (const id of order) lives[id] = START_LIVES;
+    const letters: Record<string, Set<string>> = {};
+    for (const id of order) {
+      lives[id] = rules.startLives;
+      letters[id] = new Set();
+    }
     return {
       language,
       order,
       current: order[0],
-      prompt: randomPrompt(language),
+      prompt: randomPrompt(language, rules.minWordsPerPrompt),
+      promptAge: 0,
       typed: "",
-      deadline: randomFuse(now),
+      deadline: freshFuse(now, minTurnMs),
       fuseStart: now,
       lives,
       used: new Set(),
+      letters,
+      recent: {},
       round: 1,
       over: false,
       winnerId: null,
+      minWordsPerPrompt: rules.minWordsPerPrompt,
+      minTurnMs,
+      syllableMaxAge: rules.syllableMaxAge,
+      startLives: rules.startLives,
+      maxLives: rules.maxLives,
     };
   },
 
@@ -90,11 +126,20 @@ export const bombParty: GameEngine<BombState> = {
         return true;
       }
 
-      // Valid! Bank the word, pass the (still-ticking) bomb onward.
+      // Valid! Bank the word + alphabet progress, pass the bomb onward.
       state.used.add(norm);
-      state.lastEvent = { type: "valid", playerId, word, at: now };
+      const bonus = bankLetters(state, playerId, norm);
+      state.recent[playerId] = { word, syllable: state.prompt, at: now };
+      state.lastEvent = { type: "valid", playerId, word, syllable: state.prompt, bonus, at: now };
       state.typed = "";
       state.current = nextAlive(state.order, state.current);
+
+      // Guarantee the next holder at least the minimum turn time.
+      if (state.deadline - now < state.minTurnMs) {
+        state.deadline = now + state.minTurnMs;
+        state.fuseStart = now;
+      }
+      ageSyllable(state);
       return true;
     }
 
@@ -123,10 +168,11 @@ export const bombParty: GameEngine<BombState> = {
 
     state.current = nextId;
     state.round += 1;
-    state.prompt = randomPrompt(state.language);
+    state.prompt = randomPrompt(state.language, state.minWordsPerPrompt);
+    state.promptAge = 0;
     state.typed = "";
     state.fuseStart = now;
-    state.deadline = randomFuse(now);
+    state.deadline = freshFuse(now, state.minTurnMs);
     return true;
   },
 
@@ -147,10 +193,11 @@ export const bombParty: GameEngine<BombState> = {
     if (wasCurrent) {
       // Hand the bomb to whoever now sits in that seat, with a fair fresh fuse.
       state.current = state.order[idx % state.order.length];
-      state.prompt = randomPrompt(state.language);
+      state.prompt = randomPrompt(state.language, state.minWordsPerPrompt);
+      state.promptAge = 0;
       state.typed = "";
       state.fuseStart = now;
-      state.deadline = randomFuse(now);
+      state.deadline = freshFuse(now, state.minTurnMs);
     }
     return true;
   },
@@ -158,6 +205,10 @@ export const bombParty: GameEngine<BombState> = {
   isOver: (state) => state.over,
 
   view(state): BombPartyView {
+    const alphabet: Record<string, string> = {};
+    for (const id of state.order) {
+      alphabet[id] = [...(state.letters[id] ?? [])].sort().join("");
+    }
     return {
       kind: "bombparty",
       language: state.language,
@@ -168,7 +219,10 @@ export const bombParty: GameEngine<BombState> = {
       deadline: state.deadline,
       fuseStart: state.fuseStart,
       lives: state.lives,
-      startLives: START_LIVES,
+      startLives: state.startLives,
+      maxLives: state.maxLives,
+      alphabet,
+      recent: state.recent,
       lastEvent: state.lastEvent,
       round: state.round,
       over: state.over,
@@ -176,3 +230,22 @@ export const bombParty: GameEngine<BombState> = {
     };
   },
 };
+
+/** Add a word's bonus letters; award (and reset) a life when the set completes. */
+function bankLetters(state: BombState, playerId: string, norm: string): boolean {
+  const set = state.letters[playerId] ?? (state.letters[playerId] = new Set());
+  for (const ch of norm) if (BONUS_SET.has(ch)) set.add(ch);
+  if (!BOMB_BONUS_ALPHABET.every((c) => set.has(c))) return false;
+  set.clear();
+  if (state.lives[playerId] < state.maxLives) state.lives[playerId] += 1;
+  return true;
+}
+
+/** Retire a syllable that has lived past its max age (keeps prompts fresh). */
+function ageSyllable(state: BombState): void {
+  state.promptAge += 1;
+  if (state.promptAge >= state.syllableMaxAge) {
+    state.prompt = randomPrompt(state.language, state.minWordsPerPrompt);
+    state.promptAge = 0;
+  }
+}

@@ -2,6 +2,7 @@
 // This is the single source of truth for the shape of a room and its players.
 
 import type { GameView, Language } from "./games";
+import type { AllSettings } from "./settings";
 
 /** Identifiers for every game the platform can host. */
 export type GameId =
@@ -61,6 +62,10 @@ export interface RoomState {
   selectedGame: GameId;
   /** Language of game *content* (Bomb Party dictionary, Petit Bac categories). */
   gameLanguage: Language;
+  /** Host-configured rules for every game (the picker shows the selected one). */
+  settings: AllSettings;
+  /** A drawing prompt for the lobby whiteboard ("draw this while you wait"). */
+  boardWord: string;
   players: Player[];
   chat: ChatMessage[];
   /** Public projection of the in-progress game, or null while in the lobby. */

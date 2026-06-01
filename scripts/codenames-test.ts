@@ -1,5 +1,6 @@
 // Deterministic unit tests for Codenames, with a controlled key and teams.
 import { codenames } from "../server/src/games/codenames.js";
+import { sanitizeCodenames } from "../shared/src/settings.js";
 
 let pass = 0;
 const ok = (c: unknown, m: string) => {
@@ -111,6 +112,38 @@ function started(keyArr: string[], remaining: { red: number; blue: number }, tur
   const spyView = codenames.playerView!(s, "a") as any;
   ok(opView.key.every((c: unknown) => c === null), "cn: operatives never see the key");
   ok(spyView.key[0] === "red", "cn: spymasters see the full key");
+}
+
+// H. Host-supplied custom words.
+{
+  const custom = Array.from({ length: 30 }, (_, i) => `WORD${i}`);
+  const s: any = codenames.init(players("a", "b", "c", "d"), 0, {
+    language: "en",
+    settings: { customWords: custom },
+  });
+  const set = new Set(custom);
+  ok(
+    s.words.length === 25 && s.words.every((w: string) => set.has(w)),
+    "cn: a 25+ custom list fills the whole board"
+  );
+
+  // Too few custom words → fall back to the built-in bank.
+  const few = ["ONLY", "A", "FEW"];
+  const s2: any = codenames.init(players("a", "b", "c", "d"), 0, {
+    language: "en",
+    settings: { customWords: few },
+  });
+  ok(
+    s2.words.length === 25 && s2.words.some((w: string) => !few.includes(w)),
+    "cn: fewer than 25 custom words falls back to the bank"
+  );
+
+  // Sanitize: trims, upper-cases, dedupes, drops blanks.
+  const clean = sanitizeCodenames({ customWords: [" cat ", "CAT", "dog", "", "  ", "cat"] });
+  ok(
+    JSON.stringify(clean.customWords) === JSON.stringify(["CAT", "DOG"]),
+    "cn: custom words are trimmed, upper-cased and de-duplicated"
+  );
 }
 
 console.log(`\n🎉 All ${pass} codenames checks passed.`);

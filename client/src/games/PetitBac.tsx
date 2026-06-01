@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, Button, GlassCard } from "@/components/primitives";
 import { Confetti } from "@/components/Confetti";
 import { useStore } from "@/lib/store";
@@ -19,6 +19,7 @@ export function PetitBac({ room }: { room: RoomState }) {
 
   if (game.stage === "done") return <FinalScores game={game} players={players} youId={youId} />;
   if (game.stage === "reveal") return <Reveal game={game} players={players} youId={youId} />;
+  if (game.stage === "review") return <Review game={game} players={players} youId={youId} />;
   return <Writing game={game} />;
 }
 
@@ -126,6 +127,140 @@ function Writing({ game }: { game: PetitBacView }) {
             ? t("pb.locked")
             : t("pb.stop", { filled, total: game.categories.length })}
         </Button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Review phase (manual, category by category) ─────────────────────────────── */
+function Review({
+  game,
+  players,
+  youId,
+}: {
+  game: PetitBacView;
+  players: Record<string, Player>;
+  youId: string | null;
+}) {
+  const t = useT();
+  const room = useStore((s) => s.room);
+  const gameAction = useStore((s) => s.gameAction);
+  const isHost = room?.hostId === youId;
+  const review = game.review;
+  if (!review) return null;
+
+  const last = review.index >= review.total - 1;
+  const letter = game.letter.toLowerCase();
+
+  const toggle = (playerId: string, answer: string) => {
+    if (!answer.trim()) return;
+    gameAction({ type: "toggle", category: review.index, playerId });
+  };
+
+  return (
+    <div className="flex flex-1 flex-col gap-4 pb-6">
+      {/* header: letter + category progress */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[linear-gradient(180deg,#9af3e4,#4fd6c0)] font-display text-3xl font-bold text-ink-900">
+            {game.letter}
+          </div>
+          <div>
+            <div className="font-display text-xl text-cloud">{t("pb.review")}</div>
+            <div className="text-xs text-faint">
+              {t("pb.round", { round: game.round, total: game.totalRounds })}
+            </div>
+          </div>
+        </div>
+        <div className="text-right text-sm text-faint">
+          {t("pb.reviewCat", { n: review.index + 1, total: review.total })}
+        </div>
+      </div>
+
+      {/* category step dots */}
+      <div className="flex flex-wrap gap-1.5">
+        {Array.from({ length: review.total }).map((_, i) => (
+          <span
+            key={i}
+            className={`h-1.5 flex-1 rounded-full ${
+              i < review.index ? "bg-accent/60" : i === review.index ? "bg-accent" : "bg-white/10"
+            }`}
+          />
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={review.index}
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -24 }}
+          transition={{ type: "spring", stiffness: 320, damping: 28 }}
+          className="flex flex-1 flex-col gap-3"
+        >
+          <div className="text-center font-display text-2xl text-cloud">{review.category}</div>
+
+          <div className="flex flex-col gap-2">
+            {review.cells.map((cell) => {
+              const p = players[cell.playerId];
+              const blank = !cell.answer.trim();
+              const matches =
+                !blank &&
+                cell.answer.trim().toLowerCase().normalize("NFD").replace(/[^a-z]/g, "").startsWith(letter);
+              return (
+                <button
+                  key={cell.playerId}
+                  disabled={blank}
+                  onClick={() => toggle(cell.playerId, cell.answer)}
+                  className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition ${
+                    blank
+                      ? "cursor-default border-white/5 bg-white/[0.03]"
+                      : cell.valid
+                        ? "border-accent/30 bg-accent/10 hover:bg-accent/15"
+                        : "border-rose-400/30 bg-rose-500/10 hover:bg-rose-500/15"
+                  }`}
+                >
+                  {p && <Avatar emoji={p.avatar} color={p.color} size={30} />}
+                  <span className="w-24 shrink-0 truncate text-sm text-mist">{p?.name ?? "—"}</span>
+                  <span
+                    className={`flex-1 truncate font-display text-lg ${
+                      blank
+                        ? "text-faint"
+                        : cell.valid
+                          ? "text-cloud"
+                          : "text-rose-300 line-through"
+                    }`}
+                  >
+                    {cell.answer || "—"}
+                  </span>
+                  {!blank && !matches && (
+                    <span title={`≠ ${game.letter}`} className="text-xs text-amber-300">
+                      ⚠
+                    </span>
+                  )}
+                  {!blank && (
+                    <span className={cell.valid ? "text-accent" : "text-rose-300"}>
+                      {cell.valid ? "✓" : "✗"}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+      </AnimatePresence>
+
+      <div className="mt-auto flex flex-col gap-2">
+        <p className="text-center text-xs text-faint">{t("pb.reviewHint")}</p>
+        {isHost ? (
+          <Button full onClick={() => gameAction({ type: "next" })}>
+            {last ? t("pb.seeScores") : t("pb.nextCat")}
+          </Button>
+        ) : (
+          <div className="rounded-2xl border border-white/10 bg-white/5 py-3 text-center text-sm text-mist">
+            {t("pb.hostSteps")}
+          </div>
+        )}
       </div>
     </div>
   );
