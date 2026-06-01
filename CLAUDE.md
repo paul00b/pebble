@@ -84,3 +84,24 @@ Drawing strokes are high-frequency and must **not** ride the heavy room snapshot
 | `VITE_SERVER_URL` | client | `http://localhost:3001` | Socket server URL |
 
 Health check: `GET /health` returns `{ ok, rooms }`.
+
+## Deployment
+
+Production runs as a **single Docker container**: the server also serves the built client
+(`client/dist`) from the same origin, so API + WebSocket + site share one hostname. The
+client auto-targets `window.location.origin` in prod (no `VITE_SERVER_URL` needed). See
+`Dockerfile`, `docker-compose.yml`, and `DEPLOY.md`.
+
+Live instance: **https://pebble.paulbr.fr** — a CasaOS home server behind a *locally
+configured* Cloudflare tunnel (`cloudflared` as a host systemd service, ingress in
+`/etc/cloudflared/config.yml` routing `pebble.paulbr.fr → http://127.0.0.1:3001`).
+
+**Updating the live server is manual** (no auto-deploy/CI). On the box, the `pebble-update`
+shell alias runs:
+
+```bash
+cd ~/pebble && git pull && docker compose up -d --build
+```
+
+A rebuild restarts the container, and room state is **in-memory** — redeploying drops every
+in-progress game. Deploy when nobody's mid-party.
