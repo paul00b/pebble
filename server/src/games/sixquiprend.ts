@@ -30,6 +30,8 @@ interface SixState {
   queue: { pid: string; card: number }[];
   pending: { playerId: string; card: number } | null;
   lastTurn: SixTurnEntry[];
+  /** Rows snapshot captured at the start of the current resolution (for replay). */
+  lastStartRows: number[][];
   turn: number;
   totalTurns: number;
   over: boolean;
@@ -84,6 +86,7 @@ export const sixQuiPrend: GameEngine<SixState> = {
       queue: [],
       pending: null,
       lastTurn: [],
+      lastStartRows: [],
       turn: 1,
       totalTurns: HAND_SIZE,
       over: false,
@@ -101,6 +104,15 @@ export const sixQuiPrend: GameEngine<SixState> = {
       if (!state.hands[playerId]?.includes(a.card)) return false;
       state.chosen[playerId] = a.card;
       if (state.order.every((id) => state.chosen[id] != null)) beginResolve(state);
+      return true;
+    }
+
+    if (a.type === "unchoose") {
+      // Take a tentatively-played card back into the hand — only possible while
+      // still choosing (once everyone has locked in, resolution has begun).
+      if (state.phase !== "choosing") return false;
+      if (state.chosen[playerId] == null) return false;
+      state.chosen[playerId] = null;
       return true;
     }
 
@@ -159,6 +171,8 @@ export const sixQuiPrend: GameEngine<SixState> = {
 /* ── internals ─────────────────────────────────────────────────────────────── */
 
 function beginResolve(state: SixState) {
+  // Snapshot the table before any card lands — the client replays from here.
+  state.lastStartRows = state.rows.map((r) => [...r]);
   state.queue = state.order
     .map((pid) => ({ pid, card: state.chosen[pid]! }))
     .sort((x, y) => x.card - y.card);
@@ -236,8 +250,10 @@ function publicView(state: SixState, viewer: string | null): SixQuiPrendView {
     players,
     hand: viewer ? [...(state.hands[viewer] ?? [])] : [],
     youChose: viewer ? state.chosen[viewer] != null : false,
+    youChoseCard: viewer ? state.chosen[viewer] ?? null : null,
     pendingPlayerId: state.pending?.playerId ?? null,
     lastTurn: state.lastTurn.length ? state.lastTurn : undefined,
+    lastStartRows: state.lastStartRows.length ? state.lastStartRows : undefined,
     over: state.over,
     winnerId: state.winnerId,
   };

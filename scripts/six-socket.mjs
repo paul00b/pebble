@@ -39,15 +39,31 @@ ok(a.state.game.rows.length === 4 && a.state.game.rows.every((r) => r.length ===
 // One player picks → others see only that they've chosen.
 a.sock.emit("game:action", { type: "choose", card: aHand[0] });
 await wait(250);
-const aSeenByB = b.state.game.players.find((p) => p.handCount === 10 || p.hasChosen);
 ok(b.state.game.players.some((p) => p.hasChosen), "six: a choice is visible as 'chosen' to others");
 ok(b.state.game.phase === "choosing", "six: round waits for everyone");
+ok(a.state.game.youChoseCard === aHand[0], "six: chooser sees its own tentative card");
 
-// Second player picks → the turn resolves; both hands drop to 9.
+// Take the card back → no longer chosen, card returns to play.
+a.sock.emit("game:action", { type: "unchoose" });
+await wait(200);
+ok(a.state.game.youChoseCard == null, "six: unchoose clears the tentative card");
+ok(b.state.game.players.every((p) => !p.hasChosen), "six: unchoose is visible to others");
+
+// Re-pick, then second player picks → the turn resolves; both hands drop to 9.
+a.sock.emit("game:action", { type: "choose", card: aHand[0] });
+await wait(200);
 b.sock.emit("game:action", { type: "choose", card: bHand[0] });
 await wait(300);
 ok(a.state.game.hand.length === 9, "six: chosen card leaves the hand after resolution");
 ok(a.state.game.turn === 2 || a.state.game.phase === "takeRow", "six: turn advanced (or paused for a row choice)");
+ok(Array.isArray(a.state.game.lastStartRows) && a.state.game.lastStartRows.length === 4,
+   "six: pre-turn row snapshot broadcast for replay");
+// lastTurn carries the placed-card log for replay; it's empty only when the
+// very first (lowest) card was below every row and paused for a choice.
+ok(a.state.game.turn === 2
+     ? Array.isArray(a.state.game.lastTurn) && a.state.game.lastTurn.length >= 1
+     : a.state.game.phase === "takeRow",
+   "six: resolution log (lastTurn) broadcast for replay");
 
 console.log(`\n🎉 All ${pass} six-qui-prend socket checks passed.`);
 process.exit(0);

@@ -8,7 +8,7 @@
 
 import { useSyncExternalStore } from "react";
 
-export const SOUND_NAMES = ["right", "wrong", "used", "explode", "win"] as const;
+export const SOUND_NAMES = ["right", "wrong", "used", "explode", "win", "place", "scoop"] as const;
 export type SoundName = (typeof SOUND_NAMES)[number];
 
 /* ── Mute state (persisted, observable) ──────────────────────────────────── */
@@ -211,6 +211,17 @@ const SYNTHS: Record<SoundName, (c: AudioContext, dest: AudioNode) => void> = {
     // High sparkle on top.
     tone(c, d, { freq: 1567.98, type: "sine", delay: 0.44, dur: 0.6, gain: 0.08 });
     tone(c, d, { freq: 2093, type: "sine", delay: 0.56, dur: 0.5, gain: 0.06 });
+  },
+  // A card landing on the table: a short, dry, slightly noisy tick.
+  place: (c, d) => {
+    noise(c, d, { dur: 0.07, gain: 0.16, from: 3200, to: 700, type: "lowpass", attack: 0.001 });
+    tone(c, d, { freq: 180, to: 90, type: "sine", dur: 0.08, gain: 0.12 });
+  },
+  // Scooping a row: a quick upward "swish" + soft thump as the cards gather.
+  scoop: (c, d) => {
+    noise(c, d, { dur: 0.28, gain: 0.22, from: 500, to: 3600, type: "bandpass", attack: 0.01 });
+    tone(c, d, { freq: 300, to: 520, type: "triangle", dur: 0.22, gain: 0.12 });
+    tone(c, d, { freq: 130, to: 70, type: "sine", dur: 0.18, gain: 0.16, delay: 0.16 });
   },
 };
 

@@ -157,16 +157,23 @@ export interface SixQuiPrendView {
   hand: number[];
   /** Whether the viewer has locked a card this turn. */
   youChose: boolean;
+  /** The viewer's tentatively chosen card this turn (null until they pick). */
+  youChoseCard?: number | null;
   /** During "takeRow": the player who must pick a row to take. */
   pendingPlayerId?: string | null;
   /** Summary of the most recently resolved turn. */
   lastTurn?: SixTurnEntry[];
+  /** Snapshot of the rows at the START of the last resolution — lets the client
+   *  forward-replay each placement in `lastTurn` as an animation (scoops destroy
+   *  the pre-scoop row content, so it can't be reconstructed from `rows` alone). */
+  lastStartRows?: number[][];
   over: boolean;
   winnerId?: string | null;
 }
 
 export type SixQuiPrendAction =
   | { type: "choose"; card: number }
+  | { type: "unchoose" }
   | { type: "takeRow"; rowIndex: number };
 
 /* ── Codenames ───────────────────────────────────────────────────────────── */
