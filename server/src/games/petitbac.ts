@@ -1,9 +1,12 @@
 // Petit Bac — the simultaneous-round game. A letter + fixed categories; everyone
 // races to fill an answer for each that starts with the letter. A round ends on
-// the timer or when someone slams "Stop!". The table then *reviews* answers
-// category by category: every answer counts by default, and any player can click
-// one to invalidate it. Scoring runs once review wraps up — a still-valid answer
-// scores 2 if no one else gave the same one, 1 if shared, 0 if blank/struck out.
+// the timer or when someone slams "Stop!". Clients live-sync their answers as
+// they type, so a Stop captures everyone's partial answers, not just the
+// stopper's. The table then *reviews* answers category by category on a fast
+// (~20s) per-category timer: every answer counts by default, and players vote
+// the wrong ones out — a majority of "bad" votes strikes an answer. Scoring runs
+// once review wraps up — a still-valid answer scores 2 if no one else gave the
+// same one, 1 if shared, 0 if blank/struck out.
 
 import type { Player } from "../../../shared/src/types.js";
 import type {
@@ -19,6 +22,8 @@ import type { ActionContext, GameEngine, InitOptions } from "./engine.js";
 import { normalize } from "./dictionary.js";
 
 const WRITE_MS = 100_000;
+/** Fast, forced per-category review window. */
+const REVIEW_MS = 20_000;
 const TOTAL_ROUNDS = 4;
 // Skip awkward letters (K, Q, W, X, Y, Z) so every round is playable.
 const LETTERS = "ABCDEFGHILMNOPRSTUV";
@@ -38,10 +43,11 @@ interface PBState {
   answers: Record<string, string[]>; // playerId -> answer per category
   submitted: Set<string>;
   stoppedBy: string | null;
-  /** Category currently under review (manual-validation stage). */
+  /** Category currently under review (vote stage). */
   reviewIndex: number;
-  /** Struck-out answers, keyed `${categoryIndex}:${playerId}`. Absent = valid. */
-  invalid: Set<string>;
+  /** "Bad" votes per answer, keyed `${categoryIndex}:${targetPlayerId}` →
+   *  set of voter ids. A majority strikes the answer. */
+  votes: Record<string, Set<string>>;
   scores: Record<string, number>;
   reveal?: PetitBacCell[][];
   roundScores?: Record<string, number>;
@@ -52,6 +58,12 @@ const cellKey = (category: number, playerId: string) => `${category}:${playerId}
 
 const randomLetter = () => LETTERS[Math.floor(Math.random() * LETTERS.length)];
 
+/** Bad-vote count that strikes an answer: a majority of *other* players (the
+ *  author can't vote on their own answer). Always at least 1. */
+function votesNeeded(state: PBState): number {
+  return Math.max(1, Math.floor((state.players.length - 1) / 2) + 1);
+}
+
 function beginRound(state: PBState, round: number, now: number) {
   state.round = round;
   state.letter = randomLetter();
@@ -61,23 +73,25 @@ function beginRound(state: PBState, round: number, now: number) {
   state.submitted = new Set();
   state.stoppedBy = null;
   state.reviewIndex = 0;
-  state.invalid = new Set();
+  state.votes = {};
   state.reveal = undefined;
   state.roundScores = undefined;
 }
 
-/** Writing is over — hand the table off to manual, category-by-category review. */
-function startReview(state: PBState) {
+/** Writing is over — hand the table off to fast, category-by-category voting. */
+function startReview(state: PBState, now: number) {
   state.reviewIndex = 0;
-  state.invalid = new Set();
+  state.votes = {};
   state.stage = "review";
+  state.deadline = now + REVIEW_MS;
 }
 
 /** Whether a player's answer in a category currently counts as valid. */
 function isValid(state: PBState, category: number, playerId: string): boolean {
   const answer = (state.answers[playerId]?.[category] ?? "").trim();
   if (normalize(answer).length === 0) return false; // blanks never count
-  return !state.invalid.has(cellKey(category, playerId));
+  const bad = state.votes[cellKey(category, playerId)]?.size ?? 0;
+  return bad < votesNeeded(state); // a majority of bad votes strikes it
 }
 
 /** Score every category from the (manually reviewed) validities, then reveal. */
@@ -130,7 +144,7 @@ export const petitBac: GameEngine<PBState> = {
       submitted: new Set(),
       stoppedBy: null,
       reviewIndex: 0,
-      invalid: new Set(),
+      votes: {},
       scores,
       over: false,
     };
@@ -142,42 +156,55 @@ export const petitBac: GameEngine<PBState> = {
     if (state.over) return false;
     const a = action as PetitBacAction;
 
+    const clampAnswers = (answers: string[]) =>
+      answers.slice(0, state.categories.length).map((s) => String(s).slice(0, 40));
+
+    if (a.type === "draft") {
+      // Live answer sync while writing — keeps everyone's partial answers on the
+      // server so a Stop/timeout captures them. Silent (no re-broadcast needed).
+      if (state.stage !== "writing") return false;
+      state.answers[playerId] = clampAnswers(a.answers);
+      return false;
+    }
+
     if (a.type === "submit") {
       if (state.stage !== "writing") return false;
-      state.answers[playerId] = a.answers
-        .slice(0, state.categories.length)
-        .map((s) => String(s).slice(0, 40));
+      state.answers[playerId] = clampAnswers(a.answers);
       state.submitted.add(playerId);
       // Everyone locked in → move to review early.
-      if (state.players.every((id) => state.submitted.has(id))) startReview(state);
+      if (state.players.every((id) => state.submitted.has(id))) startReview(state, ctx.now);
       return true;
     }
 
     if (a.type === "stop") {
       if (state.stage !== "writing") return false;
       state.stoppedBy = playerId;
-      startReview(state);
+      startReview(state, ctx.now);
       return true;
     }
 
     if (a.type === "toggle") {
-      // Any player may strike out / restore an answer, but only in the category
-      // currently on screen, and only if the target actually wrote something.
+      // Cast/retract a "this answer is wrong" vote — only in the category on
+      // screen, only on an answer that has content, and never on your own.
       if (state.stage !== "review" || a.category !== state.reviewIndex) return false;
+      if (a.playerId === playerId) return false;
       const answer = (state.answers[a.playerId]?.[a.category] ?? "").trim();
       if (normalize(answer).length === 0) return false;
       const key = cellKey(a.category, a.playerId);
-      if (state.invalid.has(key)) state.invalid.delete(key);
-      else state.invalid.add(key);
+      const set = state.votes[key] ?? (state.votes[key] = new Set());
+      if (set.has(playerId)) set.delete(playerId);
+      else set.add(playerId);
       return true;
     }
 
     if (a.type === "next") {
       if (!ctx.isHost) return false;
       if (state.stage === "review") {
-        // Step to the next category, or wrap up and tally the scores.
-        if (state.reviewIndex < state.categories.length - 1) state.reviewIndex += 1;
-        else finalizeScores(state);
+        // Host may skip ahead — step to the next category (fresh timer) or tally.
+        if (state.reviewIndex < state.categories.length - 1) {
+          state.reviewIndex += 1;
+          state.deadline = ctx.now + REVIEW_MS;
+        } else finalizeScores(state);
         return true;
       }
       if (state.stage === "reveal") {
@@ -198,13 +225,23 @@ export const petitBac: GameEngine<PBState> = {
   tick(state, now): boolean {
     if (state.over) return false;
     if (state.stage === "writing" && now >= state.deadline) {
-      startReview(state);
+      startReview(state, now);
+      return true;
+    }
+    if (state.stage === "review" && now >= state.deadline) {
+      // Time's up on this category — strike the voted-out answers and move on.
+      if (state.reviewIndex < state.categories.length - 1) {
+        state.reviewIndex += 1;
+        state.deadline = now + REVIEW_MS;
+      } else {
+        finalizeScores(state);
+      }
       return true;
     }
     return false;
   },
 
-  onLeave(state, playerId): boolean {
+  onLeave(state, playerId, now): boolean {
     if (state.over) return false;
     const i = state.players.indexOf(playerId);
     if (i < 0) return false;
@@ -217,7 +254,7 @@ export const petitBac: GameEngine<PBState> = {
     }
     // If the leaver was the last holdout, the round can move on now.
     if (state.stage === "writing" && state.players.every((id) => state.submitted.has(id))) {
-      startReview(state);
+      startReview(state, now);
     }
     return true;
   },
@@ -232,12 +269,14 @@ export const petitBac: GameEngine<PBState> = {
         playerId: id,
         answer: (state.answers[id]?.[c] ?? "").trim(),
         valid: isValid(state, c, id),
+        badVotes: state.votes[cellKey(c, id)]?.size ?? 0,
       }));
       review = {
         index: c,
         total: state.categories.length,
         category: state.categories[c],
         cells,
+        votesNeeded: votesNeeded(state),
       };
     }
 

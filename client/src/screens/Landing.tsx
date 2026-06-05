@@ -3,6 +3,7 @@ import { Button, GlassCard } from "@/components/primitives";
 import { Wordmark } from "@/components/Wordmark";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { SoundToggle } from "@/components/SoundToggle";
 import { useT } from "@/lib/useT";
 import { GAMES } from "@shared";
 
@@ -35,6 +36,7 @@ export function Landing({
         <Wordmark />
         <div className="flex items-center gap-2">
           <ConnectionBadge />
+          <SoundToggle />
           <LanguageToggle />
         </div>
       </motion.header>
@@ -60,14 +62,7 @@ export function Landing({
         >
           {t("landing.title1")}
           <br />
-          <span
-            style={{
-              background: "linear-gradient(100deg, #9af3e4, #b58bff 60%, #f4a8c7)",
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              color: "transparent",
-            }}
-          >
+          <span className="hero-gradient-text">
             {t("landing.title2")}
           </span>
         </motion.h1>

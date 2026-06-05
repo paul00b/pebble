@@ -65,12 +65,14 @@ export interface PetitBacCell {
   unique: boolean;
 }
 
-/** One answer being checked during the manual-validation stage. */
+/** One answer being checked during the vote-based review stage. */
 export interface PetitBacReviewCell {
   playerId: string;
   answer: string;
-  /** Currently counted as valid? Defaults to true; anyone can toggle it off. */
+  /** Currently counted as valid? Valid by default; a majority of "bad" votes strikes it. */
   valid: boolean;
+  /** How many players have voted this answer invalid. */
+  badVotes: number;
 }
 
 export interface PetitBacView {
@@ -87,12 +89,14 @@ export interface PetitBacView {
   totalPlayers: number;
   /** Player id who slammed "Stop!", if any. */
   stoppedBy?: string | null;
-  /** During "review": the single category being checked + everyone's answer. */
+  /** During "review": the single category being checked + everyone's answer.
+   *  `votesNeeded` is the bad-vote count that strikes an answer (majority). */
   review?: {
     index: number;
     total: number;
     category: string;
     cells: PetitBacReviewCell[];
+    votesNeeded: number;
   };
   /** Reveal grid: reveal[categoryIndex] = rows of cells. */
   reveal?: PetitBacCell[][];
@@ -104,9 +108,12 @@ export interface PetitBacView {
 }
 
 export type PetitBacAction =
+  /** Lock in answers (Stop / everyone-done) — also marks the player finished. */
   | { type: "submit"; answers: string[] }
+  /** Live sync of in-progress answers (so partials are saved if someone Stops). */
+  | { type: "draft"; answers: string[] }
   | { type: "stop" }
-  /** Flip a word's validity during review (any player; current category only). */
+  /** Cast/retract a "this answer is wrong" vote (current category only). */
   | { type: "toggle"; category: number; playerId: string }
   | { type: "next" };
 

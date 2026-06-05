@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Button, GlassCard } from "@/components/primitives";
 import { Wordmark } from "@/components/Wordmark";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
+import { SoundToggle } from "@/components/SoundToggle";
 import { useT } from "@/lib/useT";
 
 /** Shared chrome for any in-game screen: brand, a title, and host/leave controls. */
@@ -33,6 +34,7 @@ export function GameShell({
         </div>
         <div className="flex items-center gap-2">
           <ConnectionBadge />
+          <SoundToggle />
           {isHost && onEndGame && (
             <Button
               variant="danger"

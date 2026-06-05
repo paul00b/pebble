@@ -88,7 +88,14 @@ const ident = (name) => ({ sessionId: `gt-${name}-${Math.random().toString(36).s
   b.sock.emit("game:action", { type: "submit", answers: Array.from({ length: n }, (_, i) => `${L}beta${i}`) });
   await wait(300);
 
-  ok(a.state.game.stage === "reveal", "petitbac: advances to reveal once all submit");
+  ok(a.state.game.stage === "review", "petitbac: advances to review once all submit");
+
+  // Host skips through every category's vote window → finalize + reveal.
+  for (let i = 0; i < n; i++) {
+    a.sock.emit("game:action", { type: "next" });
+    await wait(120);
+  }
+  ok(a.state.game.stage === "reveal", "petitbac: review finalized → reveal");
   ok(a.state.game.reveal?.length === n, "petitbac: reveal grid has every category");
   ok(a.state.game.scores[aId] > 0, "petitbac: scores computed");
 

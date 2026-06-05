@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, Button, GlassCard } from "@/components/primitives";
-import { Confetti } from "@/components/Confetti";
+import { Celebration } from "@/components/Celebration";
 import { useStore } from "@/lib/store";
 import { useT } from "@/lib/useT";
 import { remaining, useClock } from "@/lib/useClock";
+import { playSound } from "@/lib/sound";
 import { BOMB_BONUS_ALPHABET } from "@shared";
 import type { BombPartyView, Player, RoomState } from "@shared";
 
@@ -33,13 +34,21 @@ export function BombParty({ room }: { room: RoomState }) {
     else setInput("");
   }, [game.current, isMyTurn]);
 
-  // Rejection feedback (only for my own attempts).
+  // Rejection feedback (only for my own attempts) + room-wide sound cues.
   const [reject, setReject] = useState<{ text: string; key: number } | null>(null);
-  const seenEvent = useRef(0);
+  // Seed from the current event so a mid-game joiner doesn't replay a stale one.
+  const seenEvent = useRef(game.lastEvent?.at ?? 0);
   useEffect(() => {
     const e = game.lastEvent;
     if (!e || e.at === seenEvent.current) return;
     seenEvent.current = e.at;
+
+    // Everyone in the room hears what just happened.
+    if (e.type === "valid") playSound("right");
+    else if (e.type === "explode") playSound("explode");
+    else if (e.type === "used") playSound("used");
+    else if (e.type === "invalid") playSound("wrong");
+
     if (e.playerId === youId && (e.type === "invalid" || e.type === "used")) {
       setReject({
         text:
@@ -50,6 +59,15 @@ export function BombParty({ room }: { room: RoomState }) {
       });
     }
   }, [game.lastEvent, youId, game.prompt]);
+
+  // After a rejected word the shake wrapper remounts the input — pull focus back
+  // (and select the text) so the player can immediately retype.
+  useEffect(() => {
+    if (reject && isMyTurn) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [reject?.key, isMyTurn]);
 
   const onChange = (v: string) => {
     setInput(v);
@@ -156,6 +174,9 @@ export function BombParty({ room }: { room: RoomState }) {
         </div>
       </div>
 
+      {/* Last accepted word — centered so the whole room sees the catch. */}
+      <LastWord game={game} players={players} clock={clock} />
+
       {/* Input / spectator */}
       <div className="w-full max-w-md">
         {isMyTurn ? (
@@ -241,6 +262,42 @@ function SyllableWord({ word, syllable }: { word: string; syllable: string }) {
   );
 }
 
+/** Centered, prominent badge of the most recently accepted word — sits between
+ *  the bomb and the input so spectators see exactly what the last player typed. */
+function LastWord({
+  game,
+  players,
+  clock,
+}: {
+  game: BombPartyView;
+  players: Record<string, Player>;
+  clock: number;
+}) {
+  const e = game.lastEvent;
+  const show = !!e && e.type === "valid" && !!e.word && clock - e.at < 3200;
+  const author = e ? players[e.playerId] : undefined;
+  return (
+    <div className="flex h-9 items-center justify-center">
+      <AnimatePresence mode="popLayout">
+        {show && e && (
+          <motion.div
+            key={e.at}
+            initial={{ opacity: 0, y: 8, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 320, damping: 22 }}
+            className="flex items-center gap-2 rounded-full glass-strong px-4 py-1.5 font-display text-lg text-cloud shadow-lg"
+          >
+            {author && <Avatar emoji={author.avatar} color={author.color} size={22} />}
+            <SyllableWord word={e.word!} syllable={e.syllable ?? ""} />
+            {e.bonus && <span>❤️</span>}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /** Floats a player's most recent accepted word above their card for a moment. */
 function RecentChip({
   entry,
@@ -311,7 +368,7 @@ function BombResults({
 
   return (
     <div className="grid flex-1 place-items-center">
-      <Confetti />
+      <Celebration />
       <GlassCard
         strong
         className="max-w-sm p-8 text-center"

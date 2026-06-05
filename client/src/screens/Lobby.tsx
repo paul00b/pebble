@@ -4,6 +4,7 @@ import { Button, GlassCard } from "@/components/primitives";
 import { Wordmark } from "@/components/Wordmark";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { SoundToggle } from "@/components/SoundToggle";
 import { RoomCodePill } from "@/components/RoomCodePill";
 import { PlayerList } from "@/components/PlayerList";
 import { useStore } from "@/lib/store";
@@ -61,6 +62,7 @@ export function Lobby({ room }: { room: RoomState }) {
         <Wordmark size={24} />
         <div className="flex items-center gap-2">
           <ConnectionBadge />
+          <SoundToggle />
           <LanguageToggle />
           <Button variant="ghost" onClick={leave} className="px-4 py-2 text-sm">
             {t("common.leave")}

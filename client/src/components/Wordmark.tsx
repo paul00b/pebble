@@ -4,18 +4,8 @@ export function Wordmark({ size = 28 }: { size?: number }) {
     <div className="flex items-center gap-2.5 select-none">
       <PebbleGlyph size={size * 1.15} />
       <span
-        className="font-display font-semibold tracking-tight"
-        style={{
-          fontSize: size,
-          lineHeight: 1,
-          background:
-            "linear-gradient(100deg, #eef4f3 20%, #ffffff 40%, #9af3e4 50%, #eef4f3 60%)",
-          backgroundSize: "200% auto",
-          WebkitBackgroundClip: "text",
-          backgroundClip: "text",
-          color: "transparent",
-          animation: "sheen 6s linear infinite",
-        }}
+        className="sheen-text font-display font-semibold tracking-tight"
+        style={{ fontSize: size, lineHeight: 1 }}
       >
         Pebble
       </span>

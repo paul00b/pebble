@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, Button, GlassCard } from "@/components/primitives";
-import { Confetti } from "@/components/Confetti";
+import { Celebration } from "@/components/Celebration";
 import { DrawBoard } from "@/components/DrawBoard";
 import { useStore } from "@/lib/store";
 import { useT } from "@/lib/useT";
@@ -202,7 +202,7 @@ function GarticResults({
 
   return (
     <div className="grid flex-1 place-items-center">
-      {game.winnerId === youId && <Confetti />}
+      <Celebration auto={game.winnerId === youId} />
       <GlassCard
         strong
         className="w-full max-w-sm p-7 text-center"

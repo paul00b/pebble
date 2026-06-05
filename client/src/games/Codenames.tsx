@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import { motion } from "framer-motion";
 import { Avatar, Button, GlassCard } from "@/components/primitives";
-import { Confetti } from "@/components/Confetti";
+import { Celebration } from "@/components/Celebration";
 import { useStore } from "@/lib/store";
 import { useT } from "@/lib/useT";
 import type {
@@ -285,7 +285,7 @@ function Results({
 
   return (
     <div className="mt-2 text-center">
-      {youWon && <Confetti />}
+      <Celebration auto={!!youWon} />
       <div
         className="rounded-2xl py-4 font-display text-2xl font-semibold"
         style={{ background: game.winner ? `${TEAM_HEX[game.winner]}22` : undefined, color: game.winner ? TEAM_HEX[game.winner] : "#fff" }}

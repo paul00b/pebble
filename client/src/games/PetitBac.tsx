@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, Button, GlassCard } from "@/components/primitives";
-import { Confetti } from "@/components/Confetti";
+import { Celebration } from "@/components/Celebration";
 import { useStore } from "@/lib/store";
 import { useT } from "@/lib/useT";
 import { useClock } from "@/lib/useClock";
@@ -34,6 +34,14 @@ function Writing({ game }: { game: PetitBacView }) {
     setAnswers(game.categories.map(() => ""));
     setStopped(false);
   }, [game.round, game.letter, game.categories]);
+
+  // Live-sync answers (debounced) so a Stop or timeout captures everyone's
+  // partials on the server, not just the stopper's. See petitbac.ts `draft`.
+  useEffect(() => {
+    if (stopped) return;
+    const id = setTimeout(() => gameAction({ type: "draft", answers }), 300);
+    return () => clearTimeout(id);
+  }, [answers, stopped, gameAction]);
 
   const clock = useClock(250);
   const secondsLeft = Math.max(0, (game.deadline - clock) / 1000);
@@ -132,7 +140,7 @@ function Writing({ game }: { game: PetitBacView }) {
   );
 }
 
-/* ── Review phase (manual, category by category) ─────────────────────────────── */
+/* ── Review phase (fast vote, category by category) ──────────────────────────── */
 function Review({
   game,
   players,
@@ -147,19 +155,32 @@ function Review({
   const gameAction = useStore((s) => s.gameAction);
   const isHost = room?.hostId === youId;
   const review = game.review;
-  if (!review) return null;
 
+  // My own votes this category (optimistic — survives the server re-broadcast).
+  const [myVotes, setMyVotes] = useState<Set<string>>(() => new Set());
+  useEffect(() => setMyVotes(new Set()), [review?.index]);
+
+  const clock = useClock(250);
+  const secondsLeft = Math.max(0, (game.deadline - clock) / 1000);
+
+  if (!review) return null;
   const last = review.index >= review.total - 1;
   const letter = game.letter.toLowerCase();
+  const lowTime = secondsLeft <= 5;
 
-  const toggle = (playerId: string, answer: string) => {
-    if (!answer.trim()) return;
-    gameAction({ type: "toggle", category: review.index, playerId });
+  const toggle = (targetId: string, answer: string) => {
+    if (!answer.trim() || targetId === youId) return;
+    setMyVotes((s) => {
+      const next = new Set(s);
+      next.has(targetId) ? next.delete(targetId) : next.add(targetId);
+      return next;
+    });
+    gameAction({ type: "toggle", category: review.index, playerId: targetId });
   };
 
   return (
     <div className="flex flex-1 flex-col gap-4 pb-6">
-      {/* header: letter + category progress */}
+      {/* header: letter + category progress + countdown */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[linear-gradient(180deg,#9af3e4,#4fd6c0)] font-display text-3xl font-bold text-ink-900">
@@ -168,13 +189,18 @@ function Review({
           <div>
             <div className="font-display text-xl text-cloud">{t("pb.review")}</div>
             <div className="text-xs text-faint">
-              {t("pb.round", { round: game.round, total: game.totalRounds })}
+              {t("pb.reviewCat", { n: review.index + 1, total: review.total })}
             </div>
           </div>
         </div>
-        <div className="text-right text-sm text-faint">
-          {t("pb.reviewCat", { n: review.index + 1, total: review.total })}
-        </div>
+        <motion.div
+          animate={lowTime ? { scale: [1, 1.12, 1] } : { scale: 1 }}
+          transition={lowTime ? { repeat: Infinity, duration: 0.7 } : { duration: 0.2 }}
+          className="font-display text-3xl tabular-nums"
+          style={{ color: lowTime ? "#fb7185" : "var(--color-cloud)" }}
+        >
+          {Math.ceil(secondsLeft)}s
+        </motion.div>
       </div>
 
       {/* category step dots */}
@@ -204,24 +230,33 @@ function Review({
             {review.cells.map((cell) => {
               const p = players[cell.playerId];
               const blank = !cell.answer.trim();
+              const mine = cell.playerId === youId;
+              const iVoted = myVotes.has(cell.playerId);
               const matches =
                 !blank &&
                 cell.answer.trim().toLowerCase().normalize("NFD").replace(/[^a-z]/g, "").startsWith(letter);
               return (
                 <button
                   key={cell.playerId}
-                  disabled={blank}
+                  disabled={blank || mine}
                   onClick={() => toggle(cell.playerId, cell.answer)}
                   className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition ${
                     blank
                       ? "cursor-default border-white/5 bg-white/[0.03]"
-                      : cell.valid
-                        ? "border-accent/30 bg-accent/10 hover:bg-accent/15"
-                        : "border-rose-400/30 bg-rose-500/10 hover:bg-rose-500/15"
+                      : !cell.valid
+                        ? "border-rose-400/40 bg-rose-500/10"
+                        : iVoted
+                          ? "border-rose-400/30 bg-rose-500/[0.07] hover:bg-rose-500/10"
+                          : mine
+                            ? "cursor-default border-accent/20 bg-accent/[0.06]"
+                            : "border-accent/30 bg-accent/10 hover:bg-rose-500/10"
                   }`}
                 >
                   {p && <Avatar emoji={p.avatar} color={p.color} size={30} />}
-                  <span className="w-24 shrink-0 truncate text-sm text-mist">{p?.name ?? "—"}</span>
+                  <span className="w-24 shrink-0 truncate text-sm text-mist">
+                    {p?.name ?? "—"}
+                    {mine && <span className="text-faint"> ·{t("common.you")}</span>}
+                  </span>
                   <span
                     className={`flex-1 truncate font-display text-lg ${
                       blank
@@ -238,9 +273,14 @@ function Review({
                       ⚠
                     </span>
                   )}
-                  {!blank && (
-                    <span className={cell.valid ? "text-accent" : "text-rose-300"}>
-                      {cell.valid ? "✓" : "✗"}
+                  {/* bad-vote tally — fills toward the majority that strikes it */}
+                  {!blank && (cell.badVotes > 0 || iVoted) && (
+                    <span
+                      className={`rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums ${
+                        cell.valid ? "bg-rose-500/15 text-rose-300/80" : "bg-rose-500/25 text-rose-200"
+                      }`}
+                    >
+                      ✗ {cell.badVotes}/{review.votesNeeded}
                     </span>
                   )}
                 </button>
@@ -252,14 +292,10 @@ function Review({
 
       <div className="mt-auto flex flex-col gap-2">
         <p className="text-center text-xs text-faint">{t("pb.reviewHint")}</p>
-        {isHost ? (
-          <Button full onClick={() => gameAction({ type: "next" })}>
-            {last ? t("pb.seeScores") : t("pb.nextCat")}
+        {isHost && (
+          <Button full variant="ghost" onClick={() => gameAction({ type: "next" })}>
+            {last ? t("pb.seeScores") : t("pb.skip")}
           </Button>
-        ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/5 py-3 text-center text-sm text-mist">
-            {t("pb.hostSteps")}
-          </div>
         )}
       </div>
     </div>
@@ -369,7 +405,7 @@ function FinalScores({
 
   return (
     <div className="grid flex-1 place-items-center">
-      <Confetti />
+      <Celebration />
       <GlassCard
         strong
         className="w-full max-w-sm p-7 text-center"

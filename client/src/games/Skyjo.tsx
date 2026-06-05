@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Avatar, Button, GlassCard } from "@/components/primitives";
-import { Confetti } from "@/components/Confetti";
+import { Celebration } from "@/components/Celebration";
 import { useStore } from "@/lib/store";
 import { useT } from "@/lib/useT";
 import type { SkyjoCell, SkyjoView, Player, RoomState } from "@shared";
@@ -341,7 +341,7 @@ function SkyjoResults({
 
   return (
     <div className="grid flex-1 place-items-center">
-      {game.winnerId === youId && <Confetti />}
+      <Celebration auto={game.winnerId === youId} />
       <GlassCard
         strong
         className="w-full max-w-sm p-7 text-center"

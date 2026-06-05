@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, Button, GlassCard } from "@/components/primitives";
-import { Confetti } from "@/components/Confetti";
+import { Celebration } from "@/components/Celebration";
 import { useStore } from "@/lib/store";
 import { useT } from "@/lib/useT";
 import { bullHeads, type Player, type RoomState, type SixQuiPrendView } from "@shared";
@@ -177,7 +177,7 @@ function SixResults({
 
   return (
     <div className="grid flex-1 place-items-center">
-      <Confetti />
+      <Celebration />
       <GlassCard
         strong
         className="w-full max-w-sm p-7 text-center"

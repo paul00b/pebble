@@ -1,9 +1,10 @@
 // Bomb Party — the live-turn game. A bomb passes around the circle; the holder
 // must type a real word containing the given syllable before the fuse runs out.
-// The fuse PERSISTS across passes (classic, tense) and only resets when the
-// bomb explodes — but every pass is guaranteed at least `minTurnMs` (the host's
-// "minimum turn duration"), so a fast pass can never instantly kill the next
-// player. Server owns the timer; clients just animate toward `deadline`.
+// Every player change resets the fuse to a fresh `minTurnMs … 30s` window — so
+// each holder gets a fair, unpredictable amount of time. A successful word also
+// rolls a brand-new syllable; the syllable only persists when a player explodes
+// (so whoever inherits the bomb after a death faces the same tricky syllable).
+// Server owns the timer; clients just animate toward `deadline`.
 
 import type { Player } from "../../../shared/src/types.js";
 import type {
@@ -20,8 +21,8 @@ import {
   type BombPartySettings,
 } from "../../../shared/src/settings.js";
 
-/** Extra randomness on top of the guaranteed minimum, at each fresh bomb. */
-const FUSE_SPREAD_MS = 20_000;
+/** Hard ceiling on any fuse: a fresh bomb lasts `minTurnMs … MAX_FUSE_MS`. */
+const MAX_FUSE_MS = 30_000;
 const BONUS_SET = new Set(BOMB_BONUS_ALPHABET);
 
 interface BombState {
@@ -52,9 +53,11 @@ interface BombState {
   maxLives: number;
 }
 
-/** A fresh bomb: the guaranteed minimum plus a random spread. */
-const freshFuse = (now: number, minMs: number) =>
-  now + minMs + Math.floor(Math.random() * FUSE_SPREAD_MS);
+/** A fresh bomb: the guaranteed minimum plus a random spread, capped at 30s. */
+const freshFuse = (now: number, minMs: number) => {
+  const spread = Math.max(0, MAX_FUSE_MS - minMs);
+  return now + minMs + Math.floor(Math.random() * (spread + 1));
+};
 
 function nextAlive(order: string[], current: string): string {
   const i = order.indexOf(current);
@@ -134,12 +137,11 @@ export const bombParty: GameEngine<BombState> = {
       state.typed = "";
       state.current = nextAlive(state.order, state.current);
 
-      // Guarantee the next holder at least the minimum turn time.
-      if (state.deadline - now < state.minTurnMs) {
-        state.deadline = now + state.minTurnMs;
-        state.fuseStart = now;
-      }
-      ageSyllable(state);
+      // A clean pass earns the next player a fresh syllable and a fresh fuse.
+      state.prompt = randomPrompt(state.language, state.minWordsPerPrompt);
+      state.promptAge = 0;
+      state.fuseStart = now;
+      state.deadline = freshFuse(now, state.minTurnMs);
       return true;
     }
 
@@ -166,10 +168,10 @@ export const bombParty: GameEngine<BombState> = {
       return true;
     }
 
+    // The bomb explodes but the syllable stays — whoever inherits it faces the
+    // same tricky prompt that just killed someone, only the fuse is fresh.
     state.current = nextId;
     state.round += 1;
-    state.prompt = randomPrompt(state.language, state.minWordsPerPrompt);
-    state.promptAge = 0;
     state.typed = "";
     state.fuseStart = now;
     state.deadline = freshFuse(now, state.minTurnMs);
@@ -239,13 +241,4 @@ function bankLetters(state: BombState, playerId: string, norm: string): boolean 
   set.clear();
   if (state.lives[playerId] < state.maxLives) state.lives[playerId] += 1;
   return true;
-}
-
-/** Retire a syllable that has lived past its max age (keeps prompts fresh). */
-function ageSyllable(state: BombState): void {
-  state.promptAge += 1;
-  if (state.promptAge >= state.syllableMaxAge) {
-    state.prompt = randomPrompt(state.language, state.minWordsPerPrompt);
-    state.promptAge = 0;
-  }
 }
