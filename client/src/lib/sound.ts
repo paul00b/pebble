@@ -8,7 +8,7 @@
 
 import { useSyncExternalStore } from "react";
 
-export const SOUND_NAMES = ["right", "wrong", "used", "explode", "win", "place", "scoop", "flip", "clear"] as const;
+export const SOUND_NAMES = ["right", "wrong", "used", "explode", "win", "place", "scoop", "flip", "clear", "alert"] as const;
 export type SoundName = (typeof SOUND_NAMES)[number];
 
 /* ── Mute state (persisted, observable) ──────────────────────────────────── */
@@ -234,6 +234,11 @@ const SYNTHS: Record<SoundName, (c: AudioContext, dest: AudioNode) => void> = {
       tone(c, d, { freq: f, type: "triangle", delay: i * 0.07, dur: 0.16, gain: 0.13 })
     );
     tone(c, d, { freq: 1760, type: "sine", delay: 0.18, dur: 0.26, gain: 0.06 });
+  },
+  // Attention chime — "last turn!" two-tone doorbell.
+  alert: (c, d) => {
+    tone(c, d, { freq: 880, type: "triangle", dur: 0.22, gain: 0.18 });
+    tone(c, d, { freq: 660, type: "triangle", delay: 0.2, dur: 0.34, gain: 0.18 });
   },
 };
 

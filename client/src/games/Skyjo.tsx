@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, Button, GlassCard } from "@/components/primitives";
 import { Celebration } from "@/components/Celebration";
@@ -17,12 +17,12 @@ function valueColor(v: number): string {
 }
 
 type CardSize = "seat" | "you" | "center";
-// Responsive: cards grow on larger screens while staying small enough that the
-// circular seating never overlaps. "you" (your own grid) is the biggest.
+// Responsive: cards grow on larger screens. "you" (your own grid) is the biggest.
+// Kept moderate so a flowing top→bottom layout always fits the viewport.
 const SIZES: Record<CardSize, string> = {
-  seat: "h-9 w-[1.7rem] text-[0.72rem] sm:h-11 sm:w-[2.05rem] sm:text-sm lg:h-[3rem] lg:w-[2.25rem] lg:text-[1.05rem]",
-  you: "h-11 w-[2.05rem] text-sm sm:h-[3.3rem] sm:w-[2.5rem] sm:text-lg lg:h-[3.7rem] lg:w-[2.8rem] lg:text-xl",
-  center: "h-16 w-12 text-xl sm:h-[4.3rem] sm:w-[3.25rem] sm:text-2xl lg:h-[5rem] lg:w-[3.7rem] lg:text-3xl",
+  seat: "h-9 w-[1.7rem] text-[0.72rem] sm:h-10 sm:w-[1.95rem] sm:text-sm lg:h-11 lg:w-[2.15rem] lg:text-[1rem]",
+  you: "h-11 w-[2.05rem] text-base sm:h-12 sm:w-[2.3rem] sm:text-lg lg:h-14 lg:w-[2.6rem] lg:text-xl",
+  center: "h-14 w-10 text-lg sm:h-16 sm:w-12 sm:text-xl lg:h-[4.4rem] lg:w-[3.3rem] lg:text-2xl",
 };
 // Matching gap so spacing is identical horizontally (between columns) and
 // vertically (between rows).
@@ -175,14 +175,6 @@ function DeckPile({
   );
 }
 
-/** Seat position on an ellipse around the centre. Index 0 = you, bottom. */
-function seatStyle(i: number, n: number): CSSProperties {
-  const a = (i / n) * 2 * Math.PI + Math.PI / 2; // i=0 → bottom
-  const left = 50 + 37 * Math.cos(a);
-  const top = 50 + 39 * Math.sin(a);
-  return { left: `${left}%`, top: `${top}%`, transform: "translate(-50%, -50%)" };
-}
-
 function Seat({
   player,
   info,
@@ -253,6 +245,24 @@ function useSkyjoSounds(game: SkyjoView) {
   }, [game]);
 }
 
+/** Fires once when someone closes the round → big "last turn!" banner + chime. */
+function useCloserAlert(game: SkyjoView): boolean {
+  const [show, setShow] = useState(false);
+  const prevCloser = useRef<string | null>(game.closerId ?? null);
+  useEffect(() => {
+    const prev = prevCloser.current;
+    const cur = game.closerId ?? null;
+    prevCloser.current = cur;
+    if (!prev && cur && game.phase === "turn") {
+      setShow(true);
+      playSound("alert");
+      const id = window.setTimeout(() => setShow(false), 3200);
+      return () => clearTimeout(id);
+    }
+  }, [game.closerId, game.phase]);
+  return show;
+}
+
 export function Skyjo({ room }: { room: RoomState }) {
   const t = useT();
   const game = room.game as SkyjoView;
@@ -261,6 +271,7 @@ export function Skyjo({ room }: { room: RoomState }) {
   const players = Object.fromEntries(room.players.map((p) => [p.id, p])) as Record<string, Player>;
 
   useSkyjoSounds(game);
+  const lastTurnAlert = useCloserAlert(game);
 
   // Local interaction mode layered on top of the server stage.
   const [mode, setMode] = useState<"idle" | "takeDiscard" | "keep" | "flipAfterDiscard">("idle");
@@ -339,19 +350,23 @@ export function Skyjo({ room }: { room: RoomState }) {
             ? t("sk.tapToFlip")
             : t("sk.chooseAction");
 
-  // Seat the players around an ellipse, you first (bottom), keeping turn order.
-  const n = game.players.length;
+  // Turn order, you first; split into opponents (top) vs you (bottom).
   const meIdx = game.players.findIndex((p) => p.id === youId);
   const ordered =
     meIdx >= 0 ? [...game.players.slice(meIdx), ...game.players.slice(0, meIdx)] : game.players;
+  const opponents = ordered.filter((p) => p.id !== youId);
+  const youSeat = ordered.find((p) => p.id === youId);
 
   const deckClickable = myTurn && game.stage === "await" && mode === "idle";
   const discardClickable =
     myTurn && game.stage === "await" && mode === "idle" && game.discardTop != null;
 
+  const closerName = game.closerId ? players[game.closerId]?.name ?? null : null;
+  const closing = game.closerId != null && game.phase === "turn";
+
   return (
-    <div className="flex flex-1 flex-col gap-2 pb-4">
-      {/* status banner */}
+    <div className="relative flex flex-1 flex-col gap-3 pb-4">
+      {/* status */}
       <div className="text-center">
         <motion.div
           key={status}
@@ -362,99 +377,130 @@ export function Skyjo({ room }: { room: RoomState }) {
           {status}
         </motion.div>
         {hint && <div className="mt-0.5 text-xs text-accent sm:text-sm">{hint}</div>}
+        {closing && !lastTurnAlert && (
+          <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-xs text-rose-200">
+            🏁 {t("sk.lastTurn")}
+            {closerName ? ` · ${closerName}` : ""}
+          </div>
+        )}
       </div>
 
-      {/* ── the round table ── seats on a circle, piles at the centre ── */}
-      <div className="relative mx-auto w-full max-w-[680px] flex-1 min-h-[440px] sm:min-h-[520px] lg:max-w-[860px] lg:min-h-[620px]">
-        {/* felt glow at the centre */}
+      {/* opponents, wrapping across the top */}
+      <div className="flex flex-wrap items-start justify-center gap-2 sm:gap-3">
+        {opponents.map((p) => (
+          <Seat
+            key={p.id}
+            player={p}
+            info={players[p.id]}
+            current={p.id === game.currentId && game.phase !== "done"}
+            isYou={false}
+          />
+        ))}
+      </div>
+
+      {/* centre: deck + discard (+ drawn card with Keep / Discard) — vertically
+          centred in whatever space is left between the opponents and your grid */}
+      <div className="relative flex flex-1 items-center justify-center gap-5 py-1 sm:gap-7">
         <div
-          className="pointer-events-none absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full sm:h-56 sm:w-56"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-36 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full sm:h-44 sm:w-72"
           style={{ background: "radial-gradient(circle, rgba(110,231,214,0.10), transparent 70%)" }}
         />
-
-        {/* seats */}
-        {ordered.map((p, i) => {
-          const isYou = p.id === youId;
-          return (
-            <div key={p.id} className="absolute" style={seatStyle(i, n)}>
-              <Seat
-                player={p}
-                info={players[p.id]}
-                current={p.id === game.currentId && game.phase !== "done"}
-                isYou={isYou}
-                cellClickable={isYou ? cellClickableForMe : undefined}
-                onCell={isYou ? onMyCell : undefined}
-              />
-            </div>
-          );
-        })}
-
-        {/* centre: deck + discard (+ drawn card with Keep / Discard) */}
-        <div
-          className="absolute flex items-start justify-center gap-4 sm:gap-5"
-          style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
-        >
-          <div className="text-center">
-            <DeckPile
-              count={game.deckCount}
-              clickable={deckClickable}
-              onClick={() => gameAction({ type: "drawDeck" })}
-            />
-            <div className="mt-1 text-[0.65rem] text-faint sm:text-xs">{t("sk.deck")}</div>
-          </div>
-
-          <div className="text-center">
-            {game.discardTop != null ? (
-              <div className="grid place-items-center" style={{ perspective: 600 }}>
-                <AnimatePresence mode="popLayout" initial={false}>
-                  <motion.div
-                    key={game.discardTop}
-                    initial={{ rotateY: 90, opacity: 0, y: -6 }}
-                    animate={{ rotateY: 0, opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.85 }}
-                    transition={{ type: "spring", stiffness: 280, damping: 22 }}
-                  >
-                    <CardCell
-                      cell={{ up: true, value: game.discardTop }}
-                      size="center"
-                      clickable={discardClickable}
-                      onClick={discardClickable ? () => setMode("takeDiscard") : undefined}
-                    />
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            ) : (
-              <div className={`${SIZES.center} rounded-lg border border-dashed border-white/15`} />
-            )}
-            <div className="mt-1 text-[0.65rem] text-faint sm:text-xs">{t("sk.discard")}</div>
-          </div>
-
-          {/* drawn card hovering with its two actions */}
-          <AnimatePresence>
-            {myTurn && game.stage === "resolveDraw" && game.held != null && (
-              <motion.div
-                initial={{ opacity: 0, y: 8, scale: 0.85 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.85 }}
-                className="text-center"
-              >
-                <CardCell cell={{ up: true, value: game.held }} size="center" />
-                <div className="mt-1 text-[0.65rem] text-accent sm:text-xs">{t("sk.drawnCard")}</div>
-                {mode === "idle" && (
-                  <div className="mt-1.5 flex flex-col gap-1.5">
-                    <Button onClick={() => setMode("keep")} className="px-3 py-1 text-xs">
-                      {t("sk.keep")}
-                    </Button>
-                    <Button variant="ghost" onClick={discardCard} className="px-3 py-1 text-xs">
-                      {t("sk.discardCard")}
-                    </Button>
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className="relative text-center">
+          <DeckPile
+            count={game.deckCount}
+            clickable={deckClickable}
+            onClick={() => gameAction({ type: "drawDeck" })}
+          />
+          <div className="mt-1 text-[0.65rem] text-faint sm:text-xs">{t("sk.deck")}</div>
         </div>
+
+        <div className="relative text-center">
+          {game.discardTop != null ? (
+            <div className="grid place-items-center" style={{ perspective: 600 }}>
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.div
+                  key={game.discardTop}
+                  initial={{ rotateY: 90, opacity: 0, y: -6 }}
+                  animate={{ rotateY: 0, opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.85 }}
+                  transition={{ type: "spring", stiffness: 280, damping: 22 }}
+                >
+                  <CardCell
+                    cell={{ up: true, value: game.discardTop }}
+                    size="center"
+                    clickable={discardClickable}
+                    onClick={discardClickable ? () => setMode("takeDiscard") : undefined}
+                  />
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          ) : (
+            <div className={`${SIZES.center} rounded-lg border border-dashed border-white/15`} />
+          )}
+          <div className="mt-1 text-[0.65rem] text-faint sm:text-xs">{t("sk.discard")}</div>
+        </div>
+
+        {/* drawn card hovering with its two actions */}
+        <AnimatePresence>
+          {myTurn && game.stage === "resolveDraw" && game.held != null && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.85 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              className="relative text-center"
+            >
+              <CardCell cell={{ up: true, value: game.held }} size="center" />
+              <div className="mt-1 text-[0.65rem] text-accent sm:text-xs">{t("sk.drawnCard")}</div>
+              {mode === "idle" && (
+                <div className="mt-1.5 flex flex-col gap-1.5">
+                  <Button onClick={() => setMode("keep")} className="px-3 py-1 text-xs">
+                    {t("sk.keep")}
+                  </Button>
+                  <Button variant="ghost" onClick={discardCard} className="px-3 py-1 text-xs">
+                    {t("sk.discardCard")}
+                  </Button>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
+
+      {/* you, anchored to the bottom */}
+      {youSeat && (
+        <div className="flex justify-center">
+          <Seat
+            player={youSeat}
+            info={players[youId ?? ""]}
+            current={myTurn}
+            isYou
+            cellClickable={cellClickableForMe}
+            onCell={onMyCell}
+          />
+        </div>
+      )}
+
+      {/* big "last turn!" banner */}
+      <AnimatePresence>
+        {lastTurnAlert && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: -10 }}
+            transition={{ type: "spring", stiffness: 260, damping: 18 }}
+            className="pointer-events-none fixed inset-x-0 top-24 z-50 flex justify-center px-4"
+          >
+            <div className="glass-strong flex flex-col items-center gap-0.5 rounded-2xl px-6 py-3 text-center shadow-xl">
+              <span className="font-display text-2xl font-bold text-rose-200 sm:text-3xl">
+                🏁 {t("sk.lastTurnTitle")}
+              </span>
+              {closerName && (
+                <span className="text-sm text-mist">{t("sk.lastTurnBy", { name: closerName })}</span>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
