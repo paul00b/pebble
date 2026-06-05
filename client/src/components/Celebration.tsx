@@ -11,8 +11,19 @@ interface Burst {
   y: number;
 }
 
-/** A radial confetti pop centered on a point — used for click/tap bursts. */
-function ConfettiBurst({ x, y, count = 26 }: { x: number; y: number; count?: number }) {
+/** A radial confetti pop centered on a point — used for click/tap bursts.
+ *  Pass `color` to tint roughly half the pieces with that player's color. */
+export function ConfettiBurst({
+  x,
+  y,
+  count = 26,
+  color,
+}: {
+  x: number;
+  y: number;
+  count?: number;
+  color?: string;
+}) {
   const pieces = useMemo(
     () =>
       Array.from({ length: count }, (_, i) => {
@@ -24,12 +35,12 @@ function ConfettiBurst({ x, y, count = 26 }: { x: number; y: number; count?: num
           dy: Math.sin(angle) * dist,
           drop: 100 + Math.random() * 220, // gravity pulls the pieces down after the pop
           rotate: Math.random() * 720 - 360,
-          color: COLORS[i % COLORS.length],
+          color: color && i % 2 === 0 ? color : COLORS[i % COLORS.length],
           size: 6 + Math.random() * 7,
           duration: 1.0 + Math.random() * 0.7,
         };
       }),
-    [count]
+    [count, color]
   );
 
   return (

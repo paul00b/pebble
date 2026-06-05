@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Button, GlassCard } from "@/components/primitives";
+import { ConfettiBurst } from "@/components/Celebration";
 import { Wordmark } from "@/components/Wordmark";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -27,11 +28,23 @@ export function Lobby({ room }: { room: RoomState }) {
   const t = useT();
   const youId = useStore((s) => s.youId);
   const selectGame = useStore((s) => s.selectGame);
+  const vote = useStore((s) => s.vote);
+  const randomGame = useStore((s) => s.randomGame);
+  const sendConfetti = useStore((s) => s.sendConfetti);
+  const pushConfetti = useStore((s) => s.pushConfetti);
   const setGameLanguage = useStore((s) => s.setGameLanguage);
   const start = useStore((s) => s.start);
   const kick = useStore((s) => s.kick);
   const leaveRoom = useStore((s) => s.leaveRoom);
   const pushNotice = useStore((s) => s.pushNotice);
+
+  // Tally votes per game (playerId → gameId) for the bubble counters.
+  const voteCounts = useMemo(() => {
+    const counts: Partial<Record<string, number>> = {};
+    for (const g of Object.values(room.votes ?? {})) counts[g] = (counts[g] ?? 0) + 1;
+    return counts;
+  }, [room.votes]);
+  const myVote = youId ? room.votes?.[youId] : undefined;
 
   const isHost = room.hostId === youId;
   const meta = gameById(room.selectedGame);
@@ -54,10 +67,32 @@ export function Lobby({ room }: { room: RoomState }) {
     window.history.replaceState({}, "", "/");
   };
 
+  // Tapping the empty space around the cards flings confetti that everyone
+  // in the room sees, at the same relative spot on each screen.
+  useEffect(() => {
+    if (room.phase !== "lobby") return;
+    const INTERACTIVE = "button, a, input, textarea, select, [role='button'], [contenteditable]";
+    let last = 0;
+    const onDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest(INTERACTIVE)) return; // leave clickable elements alone
+      if (e.timeStamp - last < 120) return; // light throttle against spam
+      last = e.timeStamp;
+      const x = e.clientX / window.innerWidth;
+      const y = e.clientY / window.innerHeight;
+      const color = useStore.getState().identity.color;
+      pushConfetti(x, y, color); // show ours immediately…
+      sendConfetti({ x, y, color }); // …and relay it to everyone else
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [room.phase, pushConfetti, sendConfetti]);
+
   if (room.phase === "playing") return <GamePlay room={room} onLeave={leave} />;
 
   return (
     <div className="relative mx-auto flex min-h-dvh max-w-6xl flex-col px-4 sm:px-6 lg:h-dvh lg:overflow-hidden">
+      <LobbyConfetti />
       <header className="flex items-center justify-between py-5">
         <Wordmark size={24} />
         <div className="flex items-center gap-2">
@@ -85,36 +120,80 @@ export function Lobby({ room }: { room: RoomState }) {
           </div>
 
           <GlassCard className="p-5">
-            <div className="mb-3 flex items-baseline justify-between">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
               <h2 className="font-display text-xl font-semibold text-cloud">
                 {t("lobby.chooseGame")}
               </h2>
-              {!isHost && (
-                <span className="text-xs text-faint">{t("lobby.hostPicks")}</span>
+              {isHost ? (
+                <button
+                  onClick={randomGame}
+                  className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-cloud transition hover:bg-white/10 active:scale-95"
+                >
+                  🎲 {t("lobby.random")}
+                </button>
+              ) : (
+                <span className="shrink-0 text-xs text-faint">{t("lobby.voteHint")}</span>
               )}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               {GAMES.map((g) => {
                 const active = g.id === room.selectedGame;
+                const votes = voteCounts[g.id] ?? 0;
+                const mine = myVote === g.id;
                 return (
                   <motion.button
                     key={g.id}
-                    disabled={!isHost}
-                    onClick={() => selectGame(g.id)}
-                    whileHover={isHost ? { y: -3 } : undefined}
-                    whileTap={isHost ? { scale: 0.98 } : undefined}
-                    className={`relative overflow-hidden rounded-2xl border p-4 text-left transition ${
+                    onClick={() => {
+                      vote(g.id);
+                      if (isHost) selectGame(g.id);
+                    }}
+                    whileHover={{ y: -3 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`relative overflow-visible rounded-2xl border p-4 text-left transition ${
                       active
                         ? "border-accent/60 bg-accent/10"
                         : "border-white/10 bg-white/5 hover:bg-white/8"
-                    } ${!isHost && "cursor-default"}`}
+                    }`}
                   >
+                    {/* Vote bubble — grows with the number of votes. */}
+                    <AnimatePresence>
+                      {votes > 0 && (
+                        <motion.span
+                          key={votes}
+                          initial={{ scale: 0.4, opacity: 0 }}
+                          animate={{
+                            scale: Math.min(1 + (votes - 1) * 0.12, 1.7),
+                            opacity: 1,
+                          }}
+                          exit={{ scale: 0.4, opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 22 }}
+                          className={`absolute -right-2 -top-2 z-10 grid h-6 min-w-[1.5rem] origin-center place-items-center rounded-full px-1.5 text-xs font-bold tabular-nums shadow-lg ${
+                            mine
+                              ? "bg-accent text-ink-900 ring-2 ring-white/70"
+                              : "bg-accent text-ink-900"
+                          }`}
+                          title={t("lobby.votes", { n: votes })}
+                        >
+                          {votes}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                     <div className="flex items-center gap-3">
                       <span className="text-3xl">{g.emoji}</span>
                       <div className="min-w-0">
-                        <div className="font-display text-lg font-semibold text-cloud">
-                          {t(`game.${g.id}.name`)}
+                        <div className="flex items-center gap-2">
+                          <div className="truncate font-display text-lg font-semibold text-cloud">
+                            {t(`game.${g.id}.name`)}
+                          </div>
+                          {active && (
+                            <motion.span
+                              layoutId="game-active"
+                              className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[0.62rem] font-semibold text-ink-900"
+                            >
+                              {t("lobby.selected")}
+                            </motion.span>
+                          )}
                         </div>
                         <div className="truncate text-xs text-mist">
                           {g.minPlayers}–{g.maxPlayers} · {t(`game.${g.id}.duration`)}
@@ -124,14 +203,6 @@ export function Lobby({ room }: { room: RoomState }) {
                     <p className="mt-2 text-xs leading-snug text-mist">
                       {t(`game.${g.id}.tagline`)}
                     </p>
-                    {active && (
-                      <motion.span
-                        layoutId="game-active"
-                        className="absolute right-3 top-3 rounded-full bg-accent px-2 py-0.5 text-[0.62rem] font-semibold text-ink-900"
-                      >
-                        {t("lobby.selected")}
-                      </motion.span>
-                    )}
                   </motion.button>
                 );
               })}
@@ -198,6 +269,37 @@ export function Lobby({ room }: { room: RoomState }) {
           <Chat room={room} youId={youId} />
         </div>
       </main>
+    </div>
+  );
+}
+
+/* ── Synchronized confetti overlay ───────────────────────────────────────── */
+/** Renders every live confetti burst (ours + relayed) over the whole lobby.
+ *  Normalized coords are mapped to this client's viewport so a tap lands in the
+ *  same relative spot for everyone. */
+function LobbyConfetti() {
+  const confetti = useStore((s) => s.confetti);
+  const [vw, setVw] = useState(() =>
+    typeof window === "undefined" ? 0 : window.innerWidth
+  );
+  const [vh, setVh] = useState(() =>
+    typeof window === "undefined" ? 0 : window.innerHeight
+  );
+
+  useEffect(() => {
+    const onResize = () => {
+      setVw(window.innerWidth);
+      setVh(window.innerHeight);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden" aria-hidden>
+      {confetti.map((c) => (
+        <ConfettiBurst key={c.id} x={c.x * vw} y={c.y * vh} color={c.color} />
+      ))}
     </div>
   );
 }

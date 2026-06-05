@@ -8,6 +8,7 @@ import { randomWord } from "./games/garticWords.js";
 import type { GameEngine } from "./games/engine.js";
 import {
   DEFAULT_SETTINGS,
+  GAMES,
   gameById,
   sanitizeSettings,
   type AllSettings,
@@ -36,6 +37,8 @@ interface Room {
   phase: RoomState["phase"];
   hostId: string;
   selectedGame: GameId;
+  /** Per-player game votes (keyed by sessionId). */
+  votes: Map<string, GameId>;
   gameLanguage: Language;
   /** Host-configured rules for every game. */
   settings: AllSettings;
@@ -92,6 +95,7 @@ export class RoomManager {
       phase: room.phase,
       hostId: room.hostId,
       selectedGame: room.selectedGame,
+      votes: Object.fromEntries(room.votes),
       gameLanguage: room.gameLanguage,
       settings: room.settings,
       boardWord: room.boardWord,
@@ -146,6 +150,7 @@ export class RoomManager {
       phase: "lobby",
       hostId: host.id,
       selectedGame: game,
+      votes: new Map(),
       gameLanguage: language,
       settings: freshSettings(),
       boardOps: [],
@@ -228,6 +233,7 @@ export class RoomManager {
       room.graceTimers.delete(sessionId);
     }
     if (!room.players.delete(sessionId)) return;
+    room.votes.delete(sessionId);
 
     if (room.players.size === 0) {
       this.closeRoom(code, "Everyone left.");
@@ -256,6 +262,25 @@ export class RoomManager {
     const room = this.rooms.get(code);
     if (!room || room.hostId !== requesterId || room.phase !== "lobby") return;
     room.selectedGame = game;
+    this.touch(room);
+  }
+
+  /** Toggle a player's vote for a game. Anyone in the lobby may vote. */
+  vote(code: string, sessionId: string, game: GameId) {
+    const room = this.rooms.get(code);
+    if (!room || !room.players.has(sessionId) || room.phase !== "lobby") return;
+    if (room.votes.get(sessionId) === game) room.votes.delete(sessionId);
+    else room.votes.set(sessionId, game);
+    this.touch(room);
+  }
+
+  /** Host picks a game at random — weighted by votes when any have been cast. */
+  randomGame(code: string, requesterId: string) {
+    const room = this.rooms.get(code);
+    if (!room || room.hostId !== requesterId || room.phase !== "lobby") return;
+    const voted = [...room.votes.values()];
+    const pool = voted.length ? voted : GAMES.map((g) => g.id);
+    room.selectedGame = pool[Math.floor(Math.random() * pool.length)];
     this.touch(room);
   }
 
@@ -298,6 +323,7 @@ export class RoomManager {
       settings: room.settings[room.selectedGame],
     });
     room.phase = "playing";
+    room.votes.clear(); // fresh slate when we next return to the lobby
     this.touch(room);
     return { ok: true };
   }

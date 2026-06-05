@@ -51,6 +51,12 @@ export interface ClientToServerEvents {
   ) => void;
   "room:leave": () => void;
   "room:selectGame": (game: GameId) => void;
+  /** Toggle this player's vote for a game in the lobby (anyone may vote). */
+  "room:vote": (game: GameId) => void;
+  /** Host: pick a game at random (weighted by votes when there are any). */
+  "room:randomGame": () => void;
+  /** Fling synchronized confetti from a point (normalized 0–1 viewport coords). */
+  "room:confetti": (burst: { x: number; y: number; color?: string }) => void;
   /** Host sets the game-content language (Bomb Party dict, Petit Bac categories). */
   "room:setLanguage": (language: Language) => void;
   /** Host tweaks a game's rules (start lives, timers, …). */
@@ -86,6 +92,8 @@ export interface ServerToClientEvents {
   }) => void;
   /** Server is shutting the room down (host left with no successor, etc.). */
   "room:closed": (reason: string) => void;
+  /** A confetti burst relayed from another player (normalized 0–1 coords). */
+  "room:confetti": (burst: { x: number; y: number; color?: string }) => void;
   /** A relayed drawing op (Gartic), or the full op list as a sync. */
   "draw:op": (op: DrawOp) => void;
   "draw:sync": (ops: DrawOp[]) => void;

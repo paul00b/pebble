@@ -18,6 +18,14 @@ export interface Notice {
   text: string;
 }
 
+/** A live confetti burst. `x`/`y` are normalized (0–1) viewport coordinates. */
+export interface ConfettiBurst {
+  id: number;
+  x: number;
+  y: number;
+  color?: string;
+}
+
 const LOCALE_KEY = "pebble.locale";
 function loadLocale(): Locale {
   try {
@@ -35,6 +43,7 @@ interface PebbleState {
   youId: string | null;
   status: ConnStatus;
   notices: Notice[];
+  confetti: ConfettiBurst[];
   locale: Locale;
 
   setLocale: (locale: Locale) => void;
@@ -44,6 +53,10 @@ interface PebbleState {
   joinRoom: (code: string) => Promise<JoinResult>;
   leaveRoom: () => void;
   selectGame: (game: GameId) => void;
+  vote: (game: GameId) => void;
+  randomGame: () => void;
+  sendConfetti: (burst: { x: number; y: number; color?: string }) => void;
+  pushConfetti: (x: number, y: number, color?: string) => void;
   updateSettings: (game: GameId, patch: Record<string, unknown>) => void;
   newBoardWord: () => void;
   start: () => Promise<{ ok: boolean; reason?: string }>;
@@ -56,6 +69,7 @@ interface PebbleState {
 }
 
 let noticeSeq = 0;
+let confettiSeq = 0;
 /** Remembered so an automatic socket reconnect can reclaim the same seat. */
 let activeCode: string | null = null;
 
@@ -65,6 +79,7 @@ export const useStore = create<PebbleState>((set, get) => ({
   youId: null,
   status: "connecting",
   notices: [],
+  confetti: [],
   locale: loadLocale(),
 
   setLocale: (locale) => {
@@ -118,6 +133,22 @@ export const useStore = create<PebbleState>((set, get) => ({
   },
 
   selectGame: (game) => socket.emit("room:selectGame", game),
+
+  vote: (game) => socket.emit("room:vote", game),
+
+  randomGame: () => socket.emit("room:randomGame"),
+
+  sendConfetti: (burst) => socket.emit("room:confetti", burst),
+
+  pushConfetti: (x, y, color) => {
+    const id = ++confettiSeq;
+    set((s) => ({ confetti: [...s.confetti, { id, x, y, color }] }));
+    // Bursts are short-lived; drop them once their animation has finished.
+    setTimeout(
+      () => set((s) => ({ confetti: s.confetti.filter((c) => c.id !== id) })),
+      2400
+    );
+  },
 
   updateSettings: (game, patch) =>
     socket.emit("room:updateSettings", { game, patch }),
@@ -174,6 +205,11 @@ export function wireSocket() {
   socket.on("room:notice", (notice) => {
     const { locale, pushNotice } = useStore.getState();
     pushNotice(notice.kind, translate(locale, notice.key, notice.params));
+  });
+
+  // Someone else flung confetti — spawn it at the same relative spot here.
+  socket.on("room:confetti", ({ x, y, color }) => {
+    useStore.getState().pushConfetti(x, y, color);
   });
 
   socket.on("room:closed", () => {

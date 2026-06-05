@@ -61,6 +61,8 @@ export interface RoomState {
   phase: RoomPhase;
   hostId: string;
   selectedGame: GameId;
+  /** Per-player game votes (playerId → gameId). Drives the lobby vote bubbles. */
+  votes: Record<string, GameId>;
   /** Language of game *content* (Bomb Party dictionary, Petit Bac categories). */
   gameLanguage: Language;
   /** Host-configured rules for every game (the picker shows the selected one). */

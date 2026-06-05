@@ -179,6 +179,26 @@ io.on("connection", (socket) => {
     if (roomCode && sessionId) manager.selectGame(roomCode, sessionId, game);
   });
 
+  socket.on("room:vote", (game) => {
+    const { roomCode, sessionId } = socket.data;
+    if (roomCode && sessionId) manager.vote(roomCode, sessionId, game);
+  });
+
+  socket.on("room:randomGame", () => {
+    const { roomCode, sessionId } = socket.data;
+    if (roomCode && sessionId) manager.randomGame(roomCode, sessionId);
+  });
+
+  // Synchronized confetti: relay each burst to everyone else in the room.
+  // Coords are normalized (0–1) so each client maps them to its own viewport.
+  socket.on("room:confetti", (burst) => {
+    const { roomCode } = socket.data;
+    if (!roomCode) return;
+    const x = Math.max(0, Math.min(1, burst.x));
+    const y = Math.max(0, Math.min(1, burst.y));
+    socket.to(roomCode).emit("room:confetti", { x, y, color: burst.color });
+  });
+
   socket.on("room:setLanguage", (language) => {
     const { roomCode, sessionId } = socket.data;
     if (roomCode && sessionId) manager.setLanguage(roomCode, sessionId, language);
