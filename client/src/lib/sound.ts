@@ -8,7 +8,7 @@
 
 import { useSyncExternalStore } from "react";
 
-export const SOUND_NAMES = ["right", "wrong", "used", "explode", "win", "place", "scoop"] as const;
+export const SOUND_NAMES = ["right", "wrong", "used", "explode", "win", "place", "scoop", "flip", "clear"] as const;
 export type SoundName = (typeof SOUND_NAMES)[number];
 
 /* ── Mute state (persisted, observable) ──────────────────────────────────── */
@@ -222,6 +222,18 @@ const SYNTHS: Record<SoundName, (c: AudioContext, dest: AudioNode) => void> = {
     noise(c, d, { dur: 0.28, gain: 0.22, from: 500, to: 3600, type: "bandpass", attack: 0.01 });
     tone(c, d, { freq: 300, to: 520, type: "triangle", dur: 0.22, gain: 0.12 });
     tone(c, d, { freq: 130, to: 70, type: "sine", dur: 0.18, gain: 0.16, delay: 0.16 });
+  },
+  // A card turning over: a short, airy paper "fwip".
+  flip: (c, d) => {
+    noise(c, d, { dur: 0.1, gain: 0.13, from: 1600, to: 5200, type: "bandpass", attack: 0.001 });
+    tone(c, d, { freq: 480, to: 760, type: "triangle", dur: 0.08, gain: 0.05 });
+  },
+  // A column clearing: a bright ascending sparkle — a small reward.
+  clear: (c, d) => {
+    [660, 880, 1320].forEach((f, i) =>
+      tone(c, d, { freq: f, type: "triangle", delay: i * 0.07, dur: 0.16, gain: 0.13 })
+    );
+    tone(c, d, { freq: 1760, type: "sine", delay: 0.18, dur: 0.26, gain: 0.06 });
   },
 };
 

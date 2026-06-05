@@ -219,6 +219,13 @@ function resolveTurn(state: SkyjoState, pid: string) {
   clearColumns(state.grids[pid]);
   if (state.closerId === null && isComplete(state.grids[pid])) state.closerId = pid;
 
+  // Closing lap: once someone has shut the round, each player who finishes their
+  // final turn flips their whole grid face-up (revealed progressively, so the
+  // table fills in one player at a time instead of all at once at the end).
+  if (state.closerId !== null) {
+    for (const c of state.grids[pid]) if (!c.gone) c.up = true;
+  }
+
   const i = state.order.indexOf(pid);
   const nextId = state.order[(i + 1) % state.order.length];
   if (state.closerId !== null && nextId === state.closerId) {
