@@ -140,6 +140,29 @@ const begun = (): any => {
   ok(s.phase === "over", "d9: emptying a whole team ends the game");
 }
 
+// K. Reveal correction window: the checker can still tick/untick after the buzzer.
+{
+  const s = begun(); // red guesses, blue (b,d) holds the card
+  devine9.action(s, "b", { type: "start" }, P);
+  s.found = [true, true, false, false, false, false, false, false, false];
+  devine9.tick(s, s.deadline); // → reveal, red banks 2
+  ok(s.phase === "reveal" && s.scores.red === 2, "d9: turn banks 2 at the buzzer");
+
+  ok(devine9.action(s, "a", { type: "validate", index: 2 }, P) === false,
+    "d9: the guessing team can't edit during reveal");
+
+  ok(devine9.action(s, "b", { type: "validate", index: 2 }, P) === true && s.found[2] === true,
+    "d9: the checker can tick a missed answer in the reveal window");
+  ok(s.scores.red === 3 && s.roundPoints === 3, "d9: the banked score adjusts up by the correction");
+
+  devine9.action(s, "b", { type: "validate", index: 0 }, P); // untick
+  ok(s.scores.red === 2 && s.roundPoints === 2, "d9: unticking during reveal lowers the score");
+
+  devine9.action(s, "b", { type: "bomb" }, P); // a late bomb realization
+  ok(s.bombHit === true && s.scores.red === -3 && s.roundPoints === -3,
+    "d9: toggling the bomb during reveal re-banks −5");
+}
+
 // J. Theme bank integrity: every drawn round has 9 distinct answers + a bomb
 //    that isn't one of the answers. Sampling each theme many times covers all.
 for (const lang of ["fr", "en"] as const) {

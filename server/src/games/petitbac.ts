@@ -11,7 +11,6 @@
 import type { Player } from "../../../shared/src/types.js";
 import type {
   GameAction,
-  Language,
   PetitBacAction,
   PetitBacCell,
   PetitBacReviewCell,
@@ -19,6 +18,12 @@ import type {
   PetitBacView,
 } from "../../../shared/src/games.js";
 import type { ActionContext, GameEngine, InitOptions } from "./engine.js";
+import {
+  PB_BOUNDS,
+  PB_CATEGORIES,
+  PB_DEFAULT_CATEGORIES,
+  type PetitBacSettings,
+} from "../../../shared/src/settings.js";
 import { normalize } from "./dictionary.js";
 
 const WRITE_MS = 100_000;
@@ -27,18 +32,19 @@ const REVIEW_MS = 20_000;
 const TOTAL_ROUNDS = 4;
 // Skip awkward letters (K, Q, W, X, Y, Z) so every round is playable.
 const LETTERS = "ABCDEFGHILMNOPRSTUV";
-const CATEGORIES: Record<Language, string[]> = {
-  fr: ["Pays", "Ville", "Animal", "Prénom", "Métier", "Fruit ou légume"],
-  en: ["Country", "City", "Animal", "First name", "Job", "Fruit or vegetable"],
-};
 
 interface PBState {
   letter: string;
   categories: string[];
+  /** Minimum seconds before a player may Stop / lock in. */
+  minWriteSec: number;
   round: number;
   totalRounds: number;
   stage: PetitBacStage;
   deadline: number;
+  /** Earliest epoch-ms a Stop/submit is accepted (deadline minus the write
+   *  window's head start; set per round from {@link minWriteSec}). */
+  canStopAt: number;
   players: string[]; // participating player ids
   answers: Record<string, string[]>; // playerId -> answer per category
   submitted: Set<string>;
@@ -56,6 +62,11 @@ interface PBState {
 
 const cellKey = (category: number, playerId: string) => `${category}:${playerId}`;
 
+const clampInt = (v: unknown, lo: number, hi: number, fallback: number): number => {
+  const n = typeof v === "number" && Number.isFinite(v) ? Math.round(v) : fallback;
+  return Math.min(hi, Math.max(lo, n));
+};
+
 const randomLetter = () => LETTERS[Math.floor(Math.random() * LETTERS.length)];
 
 /** Bad-vote count that strikes an answer: a majority of *other* players (the
@@ -69,6 +80,7 @@ function beginRound(state: PBState, round: number, now: number) {
   state.letter = randomLetter();
   state.stage = "writing";
   state.deadline = now + WRITE_MS;
+  state.canStopAt = now + state.minWriteSec * 1000;
   state.answers = {};
   state.submitted = new Set();
   state.stoppedBy = null;
@@ -132,13 +144,27 @@ export const petitBac: GameEngine<PBState> = {
     const ids = players.map((p) => p.id);
     const scores: Record<string, number> = {};
     for (const id of ids) scores[id] = 0;
+    const cfg = (opts.settings ?? {}) as Partial<PetitBacSettings>;
+    // A valid custom list wins; otherwise fall back to the language defaults.
+    const categories =
+      Array.isArray(cfg.categories) && cfg.categories.length >= PB_CATEGORIES.min
+        ? cfg.categories
+        : PB_DEFAULT_CATEGORIES[opts.language];
+    const minWriteSec = clampInt(
+      cfg.minWriteSec,
+      PB_BOUNDS.minWriteSec.min,
+      PB_BOUNDS.minWriteSec.max,
+      45
+    );
     const state: PBState = {
       letter: "",
-      categories: CATEGORIES[opts.language],
+      categories,
+      minWriteSec,
       round: 0,
       totalRounds: TOTAL_ROUNDS,
       stage: "writing",
       deadline: 0,
+      canStopAt: 0,
       players: ids,
       answers: {},
       submitted: new Set(),
@@ -169,6 +195,12 @@ export const petitBac: GameEngine<PBState> = {
 
     if (a.type === "submit") {
       if (state.stage !== "writing") return false;
+      // Hold everyone in until the minimum write time has elapsed.
+      if (ctx.now < state.canStopAt) {
+        // Still accept the partials (so they're saved) but don't lock in yet.
+        state.answers[playerId] = clampAnswers(a.answers);
+        return false;
+      }
       state.answers[playerId] = clampAnswers(a.answers);
       state.submitted.add(playerId);
       // Everyone locked in → move to review early.
@@ -178,6 +210,7 @@ export const petitBac: GameEngine<PBState> = {
 
     if (a.type === "stop") {
       if (state.stage !== "writing") return false;
+      if (ctx.now < state.canStopAt) return false; // min write time not elapsed
       state.stoppedBy = playerId;
       startReview(state, ctx.now);
       return true;
@@ -288,6 +321,7 @@ export const petitBac: GameEngine<PBState> = {
       round: state.round,
       totalRounds: state.totalRounds,
       deadline: state.deadline,
+      canStopAt: state.canStopAt,
       finishedCount: state.submitted.size,
       totalPlayers: state.players.length,
       stoppedBy: state.stoppedBy,

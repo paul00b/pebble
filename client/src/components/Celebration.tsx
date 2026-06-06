@@ -1,15 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Confetti } from "./Confetti";
 import { playSound } from "@/lib/sound";
+import { useStore } from "@/lib/store";
 
 const COLORS = ["#6ee7d6", "#7dd3fc", "#a78bfa", "#f4a8c7", "#fbbf72", "#86efac"];
-
-interface Burst {
-  id: number;
-  x: number;
-  y: number;
-}
 
 /** A radial confetti pop centered on a point — used for click/tap bursts.
  *  Pass `color` to tint roughly half the pieces with that player's color. */
@@ -70,7 +65,8 @@ export function ConfettiBurst({
 }
 
 /** Drop onto any game's results screen: plays the victory fanfare once, and lets
- *  everyone fling confetti by clicking/tapping anywhere on the screen.
+ *  everyone fling confetti by clicking/tapping anywhere on the screen. Bursts are
+ *  synchronized — a tap lands in the same relative spot on every player's screen.
  *  `auto` toggles the initial top-down confetti rain (e.g. only for the winner). */
 export function Celebration({
   auto = true,
@@ -79,8 +75,12 @@ export function Celebration({
   auto?: boolean;
   sound?: boolean;
 }) {
-  const [bursts, setBursts] = useState<Burst[]>([]);
-  const seq = useRef(0);
+  const confetti = useStore((s) => s.confetti);
+  const pushConfetti = useStore((s) => s.pushConfetti);
+  const sendConfetti = useStore((s) => s.sendConfetti);
+
+  const [vw, setVw] = useState(() => (typeof window === "undefined" ? 0 : window.innerWidth));
+  const [vh, setVh] = useState(() => (typeof window === "undefined" ? 0 : window.innerHeight));
 
   // Play the fanfare once, just after any final game SFX (e.g. the bomb) lands.
   useEffect(() => {
@@ -89,26 +89,38 @@ export function Celebration({
     return () => clearTimeout(id);
   }, [sound]);
 
-  // Anyone clicking/tapping anywhere spawns a confetti pop at the pointer.
   useEffect(() => {
+    const onResize = () => {
+      setVw(window.innerWidth);
+      setVh(window.innerHeight);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Anyone clicking/tapping spawns a confetti pop — shown here immediately and
+  // relayed to everyone else at the same relative spot (normalized 0–1 coords).
+  useEffect(() => {
+    let last = 0;
     const onDown = (e: PointerEvent) => {
-      const id = ++seq.current;
-      setBursts((b) => [...b, { id, x: e.clientX, y: e.clientY }]);
-      window.setTimeout(
-        () => setBursts((b) => b.filter((p) => p.id !== id)),
-        2200
-      );
+      if (e.timeStamp - last < 120) return; // light throttle against spam
+      last = e.timeStamp;
+      const x = e.clientX / window.innerWidth;
+      const y = e.clientY / window.innerHeight;
+      const color = useStore.getState().identity.color;
+      pushConfetti(x, y, color); // show ours immediately…
+      sendConfetti({ x, y, color }); // …and relay it to everyone else
     };
     window.addEventListener("pointerdown", onDown);
     return () => window.removeEventListener("pointerdown", onDown);
-  }, []);
+  }, [pushConfetti, sendConfetti]);
 
   return (
     <>
       {auto && <Confetti />}
       <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden" aria-hidden>
-        {bursts.map((b) => (
-          <ConfettiBurst key={b.id} x={b.x} y={b.y} />
+        {confetti.map((c) => (
+          <ConfettiBurst key={c.id} x={c.x * vw} y={c.y * vh} color={c.color} />
         ))}
       </div>
     </>

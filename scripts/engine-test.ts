@@ -125,7 +125,7 @@ const finishReview = (st: any) => {
 
 // Default-valid flow: nobody strikes anything → classic unique/shared scoring.
 {
-  const s: any = petitBac.init(players("a", "b"), 0, { language: "fr" });
+  const s: any = petitBac.init(players("a", "b"), 0, { language: "fr", settings: { minWriteSec: 0 } });
   ok(s.stage === "writing" && s.round === 1, "petitbac: opens in writing, round 1");
   const L = s.letter;
   const n = s.categories.length;
@@ -157,17 +157,18 @@ const finishReview = (st: any) => {
   for (let r = 2; r <= s.totalRounds; r++) {
     const La = s.letter;
     const ans = Array.from({ length: n }, (_, i) => `${La}alpha${i}`);
-    petitBac.action(s, "a", { type: "submit", answers: ans }, HOST(10));
-    petitBac.action(s, "b", { type: "submit", answers: ans }, GUEST(11));
+    // Use a fixed, large clock so each round is past its (zero) minimum write time.
+    petitBac.action(s, "a", { type: "submit", answers: ans }, HOST(1_000_000));
+    petitBac.action(s, "b", { type: "submit", answers: ans }, GUEST(1_000_000));
     finishReview(s);
-    petitBac.action(s, "a", { type: "next" }, HOST(12));
+    petitBac.action(s, "a", { type: "next" }, HOST(1_000_000));
   }
   ok(s.over && s.stage === "done", "petitbac: game ends after final round");
 }
 
 // Manual validation: striking a word changes the score, and re-counts uniqueness.
 {
-  const m: any = petitBac.init(players("a", "b"), 0, { language: "fr" });
+  const m: any = petitBac.init(players("a", "b"), 0, { language: "fr", settings: { minWriteSec: 0 } });
   const n = m.categories.length;
   const L = m.letter;
   const aAns = Array.from({ length: n }, (_, i) => `${L}aaa${i}`); // a + b distinct everywhere
@@ -192,6 +193,49 @@ const finishReview = (st: any) => {
   ok(m.reveal[0][0].points === 0, "petitbac: a struck-out word scores 0");
   ok(m.reveal[0][1].points === 2, "petitbac: the remaining distinct answer stays unique (2)");
   ok(m.reveal[1][0].points === 2 && m.reveal[1][1].points === 2, "petitbac: untouched distinct answers score 2 each");
+}
+
+// Custom categories: a valid host list (≥6) replaces the language defaults.
+{
+  const cats = ["Couleur", "Marque", "Sport", "Film", "Plat", "Instrument", "Capitale"];
+  const c: any = petitBac.init(players("a", "b"), 0, {
+    language: "fr",
+    settings: { categories: cats, minWriteSec: 0 },
+  });
+  ok(c.categories.length === 7 && c.categories[0] === "Couleur", "petitbac: host's custom categories are used");
+  const v: any = petitBac.view(c);
+  ok(v.categories.length === 7, "petitbac: the view exposes the custom categories");
+}
+
+// A too-short custom list (below the minimum of 6) falls back to defaults.
+{
+  const c: any = petitBac.init(players("a", "b"), 0, {
+    language: "en",
+    settings: { categories: ["Color", "Brand"], minWriteSec: 0 },
+  });
+  ok(c.categories.length >= 6 && c.categories[0] === "Country",
+    "petitbac: an under-minimum list falls back to the language defaults");
+}
+
+// Minimum write time: Stop / submit are refused until canStopAt, then accepted.
+{
+  const w: any = petitBac.init(players("a", "b"), 0, { language: "fr", settings: { minWriteSec: 30 } });
+  ok(w.canStopAt === 30_000, "petitbac: canStopAt reflects the minimum write time");
+  const n = w.categories.length;
+  const ans = Array.from({ length: n }, (_, i) => `${w.letter}x${i}`);
+  // Early Stop is rejected and doesn't end the round…
+  ok(petitBac.action(w, "a", { type: "stop" }, GUEST(5_000)) === false,
+    "petitbac: Stop is refused before the minimum write time");
+  ok(w.stage === "writing", "petitbac: an early Stop leaves the round writing");
+  // …an early submit saves partials but doesn't lock the player in.
+  ok(petitBac.action(w, "a", { type: "submit", answers: ans }, GUEST(5_000)) === false,
+    "petitbac: submit is refused before the minimum write time");
+  ok(w.submitted.size === 0 && (w.answers.a?.length ?? 0) === n,
+    "petitbac: an early submit saves partials but doesn't lock in");
+  // Past the floor, a Stop ends the writing phase.
+  petitBac.action(w, "a", { type: "submit", answers: ans }, GUEST(31_000));
+  petitBac.action(w, "a", { type: "stop" }, GUEST(31_000));
+  ok(w.stage === "review", "petitbac: Stop works once the minimum write time has elapsed");
 }
 
 console.log(`\n🎉 All ${pass} engine checks passed.`);

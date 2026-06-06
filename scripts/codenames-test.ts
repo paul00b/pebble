@@ -105,6 +105,25 @@ function started(keyArr: string[], remaining: { red: number; blue: number }, tur
     "cn: hitting the assassin loses immediately");
 }
 
+// F2. Voting: a tap registers a vote, re-tapping retracts it, votes surface in the view.
+{
+  const s = started(key({ 0: "red" }), { red: 3, blue: 3 });
+  ok(codenames.action(s, "a", { type: "vote", index: 0 }, P) === false,
+    "cn: a spymaster can't vote");
+  ok(codenames.action(s, "d", { type: "vote", index: 0 }, P) === false,
+    "cn: an off-turn operative can't vote");
+  ok(codenames.action(s, "b", { type: "vote", index: 0 }, P) === true && s.votes.b === 0,
+    "cn: the active operative votes for a card");
+  const v = codenames.playerView!(s, "b") as any;
+  ok(v.votes[0].includes("b") && v.youVote === 0, "cn: votes & youVote surface in the view");
+  codenames.action(s, "b", { type: "vote", index: 0 }, P); // re-tap
+  ok(s.votes.b === undefined, "cn: re-tapping the same card retracts the vote");
+  // Validating (guess) clears the slate.
+  codenames.action(s, "b", { type: "vote", index: 0 }, P);
+  codenames.action(s, "b", { type: "guess", index: 0 }, P);
+  ok(Object.keys(s.votes).length === 0, "cn: validating a card clears all votes");
+}
+
 // G. The key is hidden from operatives, visible to spymasters.
 {
   const s = started(key({ 0: "red" }), { red: 3, blue: 3 });
@@ -144,6 +163,37 @@ function started(keyArr: string[], remaining: { red: number; blue: number }, tur
     JSON.stringify(clean.customWords) === JSON.stringify(["CAT", "DOG"]),
     "cn: custom words are trimmed, upper-cased and de-duplicated"
   );
+}
+
+// I. Waiting-room whiteboard: only the team that isn't playing may draw.
+{
+  const s = started(key({ 0: "red" }), { red: 3, blue: 3 }, "red"); // red's turn
+  const line: any = { t: "line", x0: 0, y0: 0, x1: 1, y1: 1, c: "#000", w: 0.01 };
+
+  ok(codenames.applyDrawOp!(s, "b", line) === false, "cn: the playing team can't draw");
+  ok(codenames.applyDrawOp!(s, "c", line) === true, "cn: the waiting team can draw");
+  ok(codenames.applyDrawOp!(s, "d", line) === true, "cn: any waiting-team member can draw");
+  ok(codenames.drawOps!(s).length === 2, "cn: the waiting team's strokes are stored");
+
+  // No team → no drawing.
+  s.members.e = { team: null, role: "operative" };
+  ok(codenames.applyDrawOp!(s, "e", line) === false, "cn: a teamless player can't draw");
+
+  // Strokes persist across the turn flip, but now the other team draws.
+  codenames.action(s, "b", { type: "guess", index: 0 }, P); // red reveals red → keeps turn
+  s.turnTeam = "blue"; // simulate a handover to blue
+  ok(codenames.drawOps!(s).length === 2, "cn: strokes survive the turn change");
+  ok(codenames.applyDrawOp!(s, "c", line) === false, "cn: the new playing team can't draw");
+  ok(codenames.applyDrawOp!(s, "a", line) === true, "cn: the new waiting team draws");
+
+  // Clear wipes the board.
+  codenames.applyDrawOp!(s, "a", { t: "clear" } as any);
+  ok(codenames.drawOps!(s).length === 0, "cn: clear wipes the whiteboard");
+
+  // During setup, anyone with a team may doodle.
+  const setup = base(); // phase "setup", turnTeam set
+  ok(codenames.applyDrawOp!(setup, "a", line) === true && codenames.applyDrawOp!(setup, "c", line) === true,
+    "cn: both teams can doodle during setup");
 }
 
 console.log(`\n🎉 All ${pass} codenames checks passed.`);

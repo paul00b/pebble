@@ -84,6 +84,9 @@ export interface PetitBacView {
   totalRounds: number;
   /** Writing-phase deadline (epoch ms). */
   deadline: number;
+  /** Earliest epoch-ms at which a player may Stop / lock in (the host-set
+   *  minimum write time). Before this, the "I'm done" button is disabled. */
+  canStopAt: number;
   /** How many players have locked in their answers. */
   finishedCount: number;
   totalPlayers: number;
@@ -208,6 +211,10 @@ export interface CodenamesView {
   /** Viewer's own assignment. */
   youTeam: CodenamesTeam | null;
   youRole: CodenamesRole;
+  /** Player ids who voted for each card this turn (current team's operatives). */
+  votes: string[][];
+  /** Card index the viewer is currently voting for, or null. */
+  youVote: number | null;
   winner: CodenamesTeam | null;
   /** Reason the game ended (e.g. assassin), for display. */
   endReason?: "swept" | "assassin" | null;
@@ -218,6 +225,7 @@ export type CodenamesAction =
   | { type: "setRole"; role: CodenamesRole }
   | { type: "begin" }
   | { type: "clue"; word: string; count: number }
+  | { type: "vote"; index: number }
   | { type: "guess"; index: number }
   | { type: "endTurn" };
 
@@ -261,7 +269,15 @@ export type SkyjoAction =
 
 /* ── Gartic (draw & guess) ───────────────────────────────────────────────── */
 
-export type GarticPhase = "drawing" | "reveal" | "done";
+export type GarticPhase = "choosing" | "drawing" | "reveal" | "done";
+
+export type GarticDifficulty = "easy" | "medium" | "hard";
+
+/** A word the drawer may pick during the choosing phase. */
+export interface GarticChoice {
+  word: string;
+  difficulty: GarticDifficulty;
+}
 
 export interface GarticPlayerScore {
   id: string;
@@ -284,11 +300,15 @@ export interface GarticView {
   drawerId: string;
   round: number;
   totalRounds: number;
-  /** Drawing-phase deadline (epoch ms). */
+  /** Deadline (epoch ms) for the current timed phase (choosing or drawing). */
   deadline: number;
+  /** Full length (ms) of the current timed phase — for animating the timer. */
+  duration: number;
   /** Full word for the drawer & during reveal; otherwise a masked pattern. */
   word: string;
   wordMasked: boolean;
+  /** The drawer's two word options — populated only for the drawer while choosing. */
+  choices: GarticChoice[];
   players: GarticPlayerScore[];
   messages: GarticMessage[];
   youAreDrawer: boolean;
@@ -298,6 +318,7 @@ export interface GarticView {
 }
 
 export type GarticAction =
+  | { type: "choose"; index: number }
   | { type: "guess"; text: string }
   | { type: "next" };
 

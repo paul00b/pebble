@@ -8,7 +8,7 @@
 
 import { useSyncExternalStore } from "react";
 
-export const SOUND_NAMES = ["right", "wrong", "used", "explode", "win", "place", "scoop", "flip", "clear", "alert"] as const;
+export const SOUND_NAMES = ["right", "wrong", "used", "explode", "win", "place", "scoop", "flip", "clear", "alert", "pop"] as const;
 export type SoundName = (typeof SOUND_NAMES)[number];
 
 /* ── Mute state (persisted, observable) ──────────────────────────────────── */
@@ -239,6 +239,13 @@ const SYNTHS: Record<SoundName, (c: AudioContext, dest: AudioNode) => void> = {
   alert: (c, d) => {
     tone(c, d, { freq: 880, type: "triangle", dur: 0.22, gain: 0.18 });
     tone(c, d, { freq: 660, type: "triangle", delay: 0.2, dur: 0.34, gain: 0.18 });
+  },
+  // A shape dropping into the sandbox: a quick, bouncy bubble "pop". Pitch is
+  // jittered a touch so rapid spawns don't sound mechanical.
+  pop: (c, d) => {
+    const base = 300 + Math.random() * 130;
+    tone(c, d, { freq: base, to: base * 1.9, type: "sine", dur: 0.07, gain: 0.16, attack: 0.004 });
+    noise(c, d, { dur: 0.03, gain: 0.05, from: 1800, to: 4200, type: "bandpass", attack: 0.001 });
   },
 };
 

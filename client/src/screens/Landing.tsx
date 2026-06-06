@@ -19,9 +19,11 @@ const fadeUp = {
 export function Landing({
   onCreate,
   onJoin,
+  onSandbox,
 }: {
   onCreate: () => void;
   onJoin: () => void;
+  onSandbox: () => void;
 }) {
   const t = useT();
   return (
@@ -107,7 +109,7 @@ export function Landing({
             {GAMES.map((g, i) => (
               <GlassCard
                 key={g.id}
-                className="flex w-44 flex-col gap-1 p-4 text-left"
+                className="sandbox-solid flex w-44 flex-col gap-1 p-4 text-left"
                 whileHover={{ y: -4, rotate: i % 2 ? 0.6 : -0.6 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
@@ -123,7 +125,26 @@ export function Landing({
                 </span>
               </GlassCard>
             ))}
-            <GlassCard className="flex w-44 flex-col items-center justify-center gap-1 p-4 text-center">
+            {/* Solo physics playground — opens locally, no room needed. */}
+            <GlassCard
+              role="button"
+              tabIndex={0}
+              onClick={onSandbox}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onSandbox())}
+              className="sandbox-solid flex w-44 cursor-pointer flex-col gap-1 p-4 text-left outline-none ring-1 ring-accent/40 focus-visible:ring-2 focus-visible:ring-accent"
+              whileHover={{ y: -4, rotate: 0.6 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <span className="text-3xl">🧩</span>
+              <span className="mt-1 font-display text-lg font-semibold text-cloud">
+                {t("landing.sandbox")}
+              </span>
+              <span className="text-xs leading-snug text-mist">{t("landing.sandboxTag")}</span>
+              <span className="mt-2 text-[0.68rem] text-accent">{t("landing.sandboxPlay")}</span>
+            </GlassCard>
+
+            <GlassCard className="sandbox-solid flex w-44 flex-col items-center justify-center gap-1 p-4 text-center">
               <span className="text-2xl">✨</span>
               <span className="text-sm text-mist">{t("landing.moreSoon")}</span>
             </GlassCard>

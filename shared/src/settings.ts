@@ -4,6 +4,7 @@
 // Bounds live here so the client (stepper limits) and server (clamping) agree.
 
 import type { GameId } from "./types";
+import type { Language } from "./games";
 
 /* ── Bomb Party ──────────────────────────────────────────────────────────── */
 
@@ -48,6 +49,31 @@ export interface CodenamesSettings {
 /** Limits for a custom Codenames word list, shared by client UI + server. */
 export const CN_WORDS = { minToUse: 25, maxWords: 400, maxLen: 24 } as const;
 
+/* ── Petit Bac ───────────────────────────────────────────────────────────── */
+
+export interface PetitBacSettings {
+  /** Categories to play with. Empty (or fewer than PB_CATEGORIES.min) falls back
+   *  to the built-in defaults for the room's game-content language. */
+  categories: string[];
+  /** Seconds a player must wait before "I'm done"/Stop unlocks (a floor on how
+   *  early a round can be ended). */
+  minWriteSec: number;
+}
+
+/** Limits for the custom category list, shared by client UI + server. */
+export const PB_CATEGORIES = { min: 6, max: 20, maxLen: 32 } as const;
+
+export const PB_BOUNDS = {
+  minWriteSec: { min: 0, max: 90 },
+} as const;
+
+/** Built-in category suggestions per language — also the fallback set when the
+ *  host hasn't picked a valid custom list. */
+export const PB_DEFAULT_CATEGORIES: Record<Language, string[]> = {
+  fr: ["Pays", "Ville", "Animal", "Prénom", "Métier", "Fruit ou légume"],
+  en: ["Country", "City", "Animal", "First name", "Job", "Fruit or vegetable"],
+};
+
 /* ── Devine 9 ────────────────────────────────────────────────────────────── */
 
 export interface Devine9Settings {
@@ -65,7 +91,7 @@ export const D9_BOUNDS = {
 /** One settings object per game. Games without options use an empty object. */
 export interface AllSettings {
   bombparty: BombPartySettings;
-  petitbac: Record<string, never>;
+  petitbac: PetitBacSettings;
   sixquiprend: Record<string, never>;
   codenames: CodenamesSettings;
   skyjo: Record<string, never>;
@@ -82,7 +108,7 @@ export const DEFAULT_SETTINGS: AllSettings = {
     maxLives: 3,
     maxPlayers: 16,
   },
-  petitbac: {},
+  petitbac: { categories: [], minWriteSec: 45 },
   sixquiprend: {},
   codenames: { customWords: [] },
   skyjo: {},
@@ -145,6 +171,30 @@ export function sanitizeCodenames(patch: Partial<CodenamesSettings>): CodenamesS
   return { customWords };
 }
 
+/** Clean an (untrusted) Petit Bac settings patch: trim/collapse/dedupe the
+ *  category list (case-insensitively) and clamp the minimum write time. A list
+ *  shorter than PB_CATEGORIES.min is kept as-is here — the engine falls back to
+ *  the language defaults — so the host can clear it to "use defaults". */
+export function sanitizePetitBac(patch: Partial<PetitBacSettings>): PetitBacSettings {
+  const d = DEFAULT_SETTINGS.petitbac;
+  const minWriteSec = clampInt(patch.minWriteSec, PB_BOUNDS.minWriteSec.min, PB_BOUNDS.minWriteSec.max, d.minWriteSec);
+  let categories = d.categories;
+  if (Array.isArray(patch.categories)) {
+    const seen = new Set<string>();
+    categories = [];
+    for (const entry of patch.categories) {
+      if (typeof entry !== "string") continue;
+      const clean = entry.trim().replace(/\s+/g, " ").slice(0, PB_CATEGORIES.maxLen);
+      const k = clean.toLowerCase();
+      if (!clean || seen.has(k)) continue;
+      seen.add(k);
+      categories.push(clean);
+      if (categories.length >= PB_CATEGORIES.max) break;
+    }
+  }
+  return { categories, minWriteSec };
+}
+
 /** Clamp an (untrusted) Devine 9 settings patch into valid, complete settings. */
 export function sanitizeDevine9(patch: Partial<Devine9Settings>): Devine9Settings {
   const d = DEFAULT_SETTINGS.devine9;
@@ -170,6 +220,9 @@ export function sanitizeSettings<G extends GameId>(
   }
   if (game === "codenames") {
     return sanitizeCodenames({ ...(current as CodenamesSettings), ...patch } as Partial<CodenamesSettings>) as AllSettings[G];
+  }
+  if (game === "petitbac") {
+    return sanitizePetitBac({ ...(current as PetitBacSettings), ...patch } as Partial<PetitBacSettings>) as AllSettings[G];
   }
   if (game === "devine9") {
     return sanitizeDevine9({ ...(current as Devine9Settings), ...patch } as Partial<Devine9Settings>) as AllSettings[G];

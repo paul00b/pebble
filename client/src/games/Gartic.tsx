@@ -20,7 +20,7 @@ export function Gartic({ room }: { room: RoomState }) {
   );
 
   const clock = useClock();
-  const { seconds, fraction } = remaining(clock, game.deadline - 80_000, game.deadline);
+  const { seconds, fraction } = remaining(clock, game.deadline - game.duration, game.deadline);
 
   const [guess, setGuess] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -37,6 +37,8 @@ export function Gartic({ room }: { room: RoomState }) {
     return <GarticResults game={game} players={players} youId={youId} t={t} />;
 
   const drawerName = players[game.drawerId]?.name ?? "…";
+  const choosing = game.phase === "choosing";
+  const timed = choosing || game.phase === "drawing";
   const canGuess = game.phase === "drawing" && !game.youAreDrawer && !game.youGuessed;
 
   const submit = () => {
@@ -59,25 +61,39 @@ export function Gartic({ room }: { room: RoomState }) {
           </span>
           <div className="text-center">
             <div className="font-display text-2xl font-bold tracking-[0.3em] text-cloud">
-              {game.word}
+              {choosing
+                ? game.youAreDrawer
+                  ? t("ga.youChoose")
+                  : "✏️"
+                : game.word}
             </div>
             <div className="text-[0.65rem] text-faint">
-              {game.youAreDrawer ? t("ga.youDraw") : t("ga.drawing", { name: drawerName })}
+              {choosing
+                ? game.youAreDrawer
+                  ? t("ga.youChooseSub")
+                  : t("ga.choosing", { name: drawerName })
+                : game.youAreDrawer
+                  ? t("ga.youDraw")
+                  : t("ga.drawing", { name: drawerName })}
             </div>
           </div>
-          <span
-            className="font-display text-lg tabular-nums"
-            style={{ color: fraction > 0.5 ? "#6ee7d6" : fraction > 0.22 ? "#fbbf72" : "#fb7185" }}
-          >
-            {Math.max(0, seconds).toFixed(0)}s
-          </span>
+          {timed ? (
+            <span
+              className="font-display text-lg tabular-nums"
+              style={{ color: fraction > 0.5 ? "#6ee7d6" : fraction > 0.22 ? "#fbbf72" : "#fb7185" }}
+            >
+              {Math.max(0, seconds).toFixed(0)}s
+            </span>
+          ) : (
+            <span className="w-8" />
+          )}
         </div>
 
         {/* timer bar */}
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
           <motion.div
             className="h-full rounded-full"
-            animate={{ width: `${fraction * 100}%` }}
+            animate={{ width: `${(timed ? fraction : 0) * 100}%` }}
             transition={{ ease: "linear", duration: 0.1 }}
             style={{
               background: fraction > 0.5 ? "#6ee7d6" : fraction > 0.22 ? "#fbbf72" : "#fb7185",
@@ -85,7 +101,16 @@ export function Gartic({ room }: { room: RoomState }) {
           />
         </div>
 
-        <DrawBoard key={game.round} channel="draw" canDraw={game.youAreDrawer} />
+        {choosing ? (
+          <WordChoice
+            game={game}
+            drawerName={drawerName}
+            t={t}
+            onChoose={(index) => gameAction({ type: "choose", index })}
+          />
+        ) : (
+          <DrawBoard key={game.round} channel="draw" canDraw={game.youAreDrawer} />
+        )}
 
         {/* reveal banner / host controls */}
         <AnimatePresence>
@@ -184,6 +209,75 @@ export function Gartic({ room }: { room: RoomState }) {
   );
 }
 
+const DIFF_STYLE: Record<string, { ring: string; text: string; bg: string }> = {
+  easy: { ring: "#34d399", text: "#6ee7b7", bg: "rgba(52,211,153,0.12)" },
+  medium: { ring: "#fbbf72", text: "#fcd9a8", bg: "rgba(251,191,114,0.12)" },
+  hard: { ring: "#f472b6", text: "#f9a8d4", bg: "rgba(244,114,182,0.12)" },
+};
+
+/** The drawer's two-word picker (and a waiting card for everyone else). */
+function WordChoice({
+  game,
+  drawerName,
+  t,
+  onChoose,
+}: {
+  game: GarticView;
+  drawerName: string;
+  t: (key: string, params?: Record<string, string | number>) => string;
+  onChoose: (index: number) => void;
+}) {
+  if (!game.youAreDrawer) {
+    return (
+      <div className="grid flex-1 place-items-center rounded-2xl glass p-6 text-center">
+        <div className="flex flex-col items-center gap-3">
+          <motion.div
+            className="text-4xl"
+            animate={{ rotate: [-8, 8, -8] }}
+            transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+          >
+            🖍️
+          </motion.div>
+          <div className="text-sm text-mist">{t("ga.choosing", { name: drawerName })}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid flex-1 place-items-center rounded-2xl glass p-5">
+      <div className="w-full max-w-md">
+        <div className="mb-3 text-center text-sm font-medium text-cloud">{t("ga.youChooseSub")}</div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {game.choices.map((c, i) => {
+            const d = DIFF_STYLE[c.difficulty] ?? DIFF_STYLE.medium;
+            return (
+              <motion.button
+                key={i}
+                onClick={() => onChoose(i)}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                className="flex flex-col items-center gap-2 rounded-2xl border p-5 text-center"
+                style={{ borderColor: d.ring, background: d.bg }}
+              >
+                <span
+                  className="rounded-full px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide"
+                  style={{ color: d.text, border: `1px solid ${d.ring}` }}
+                >
+                  {t(`ga.diff.${c.difficulty}`)}
+                </span>
+                <span className="font-display text-xl font-bold leading-tight text-cloud">
+                  {c.word}
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GarticResults({
   game,
   players,
@@ -197,6 +291,7 @@ function GarticResults({
 }) {
   const room = useStore((s) => s.room);
   const toLobby = useStore((s) => s.toLobby);
+  const retry = useStore((s) => s.retry);
   const isHost = room?.hostId === youId;
   const rows = [...game.players].sort((a, b) => b.score - a.score);
 
@@ -239,9 +334,14 @@ function GarticResults({
           })}
         </ul>
         {isHost ? (
-          <Button full className="mt-6" onClick={toLobby}>
-            {t("common.backToLobby")}
-          </Button>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button full onClick={toLobby}>
+              {t("common.backToLobby")}
+            </Button>
+            <Button full variant="ghost" onClick={retry}>
+              {t("common.retry")}
+            </Button>
+          </div>
         ) : (
           <div className="mt-6 text-sm text-mist">{t("common.waitingHost")}</div>
         )}

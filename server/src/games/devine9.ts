@@ -73,6 +73,16 @@ function endTurn(s: D9State) {
   s.phase = "reveal";
 }
 
+/** Re-bank the turn's points after a reveal-time correction (the checker fixing
+ *  answers they didn't hear before the buzzer). Applies only the delta so the
+ *  committed score stays consistent. */
+function syncRevealScore(s: D9State) {
+  const prev = s.roundPoints ?? 0;
+  const next = turnPoints(s);
+  s.scores[s.activeTeam] += next - prev;
+  s.roundPoints = next;
+}
+
 function finish(s: D9State) {
   s.phase = "over";
   s.winner =
@@ -140,17 +150,35 @@ export const devine9: GameEngine<D9State> = {
     }
 
     if (a.type === "validate") {
-      if (state.phase !== "play" || !state.started || !isChecker) return false;
+      if (!isChecker) return false;
       if (a.index < 0 || a.index >= WORDS) return false;
-      state.found[a.index] = !state.found[a.index];
-      if (state.found.every(Boolean)) endTurn(state); // all 9 → end early
-      return true;
+      if (state.phase === "play" && state.started) {
+        state.found[a.index] = !state.found[a.index];
+        if (state.found.every(Boolean)) endTurn(state); // all 9 → end early
+        return true;
+      }
+      // Correction window: tick / untick mis-heard answers after the buzzer,
+      // while the card is revealed. The team's banked points adjust live.
+      if (state.phase === "reveal") {
+        state.found[a.index] = !state.found[a.index];
+        syncRevealScore(state);
+        return true;
+      }
+      return false;
     }
 
     if (a.type === "bomb") {
-      if (state.phase !== "play" || !state.started || !isChecker) return false;
-      state.bombHit = !state.bombHit; // toggle (misclick-safe); timer keeps running
-      return true;
+      if (!isChecker) return false;
+      if (state.phase === "play" && state.started) {
+        state.bombHit = !state.bombHit; // toggle (misclick-safe); timer keeps running
+        return true;
+      }
+      if (state.phase === "reveal") {
+        state.bombHit = !state.bombHit;
+        syncRevealScore(state);
+        return true;
+      }
+      return false;
     }
 
     if (a.type === "next") {
@@ -223,7 +251,9 @@ function d9View(state: D9State, viewer: string | null): Devine9View {
     scores: { ...state.scores },
     roundPoints: state.phase === "reveal" ? state.roundPoints : null,
     youTeam: myTeam,
-    youAreChecker: state.phase === "play" && isChecker,
+    // The card-holder can tick answers both during the timer and in the reveal
+    // correction window, so this stays true across play + reveal.
+    youAreChecker: (state.phase === "play" || state.phase === "reveal") && isChecker,
     winner: state.winner,
   };
 }

@@ -46,6 +46,9 @@ function Writing({ game }: { game: PetitBacView }) {
   const clock = useClock(250);
   const secondsLeft = Math.max(0, (game.deadline - clock) / 1000);
   const frac = Math.min(1, secondsLeft / (WRITE_MS / 1000));
+  // Host-set minimum write time: "I'm done" stays locked until it elapses.
+  const lockIn = Math.max(0, Math.ceil((game.canStopAt - clock) / 1000));
+  const canStop = lockIn <= 0;
 
   const set = (i: number, v: string) =>
     setAnswers((a) => a.map((x, idx) => (idx === i ? v : x)));
@@ -53,6 +56,7 @@ function Writing({ game }: { game: PetitBacView }) {
   const filled = answers.filter((a) => a.trim()).length;
 
   const stop = () => {
+    if (!canStop) return;
     setStopped(true);
     gameAction({ type: "submit", answers });
     gameAction({ type: "stop" });
@@ -130,10 +134,12 @@ function Writing({ game }: { game: PetitBacView }) {
       </div>
 
       <div className="mt-auto flex items-center gap-3">
-        <Button full onClick={stop} disabled={stopped} variant={stopped ? "ghost" : "primary"}>
+        <Button full onClick={stop} disabled={stopped || !canStop} variant={stopped ? "ghost" : "primary"}>
           {stopped
             ? t("pb.locked")
-            : t("pb.stop", { filled, total: game.categories.length })}
+            : !canStop
+              ? t("pb.waitMin", { n: lockIn })
+              : t("pb.stop", { filled, total: game.categories.length })}
         </Button>
       </div>
     </div>
@@ -401,6 +407,7 @@ function FinalScores({
   const t = useT();
   const room = useStore((s) => s.room);
   const toLobby = useStore((s) => s.toLobby);
+  const retry = useStore((s) => s.retry);
   const isHost = room?.hostId === youId;
 
   return (
@@ -421,9 +428,14 @@ function FinalScores({
           <Scoreboard game={game} players={players} youId={youId} />
         </div>
         {isHost ? (
-          <Button full className="mt-6" onClick={toLobby}>
-            {t("common.backToLobby")}
-          </Button>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button full onClick={toLobby}>
+              {t("common.backToLobby")}
+            </Button>
+            <Button full variant="ghost" onClick={retry}>
+              {t("common.retry")}
+            </Button>
+          </div>
         ) : (
           <div className="mt-6 text-sm text-mist">{t("common.waitingHost")}</div>
         )}

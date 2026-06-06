@@ -5,6 +5,7 @@
 
 import { createRequire } from "node:module";
 import type { Language } from "../../../shared/src/games.js";
+import { extraWords } from "./extra-words.js";
 
 const require = createRequire(import.meta.url);
 
@@ -39,9 +40,10 @@ function build(language: Language): Lang {
   const words = new Set<string>();
   const counts = new Map<string, number>();
 
-  for (const raw of source) {
+  const ingest = (raw: string) => {
     const w = normalize(raw);
-    if (w.length < 3) continue;
+    if (w.length < 3) return;
+    if (words.has(w)) return; // already counted — don't double-bump syllables
     words.add(w);
 
     // Syllables of 2 or 3 letters — the game shows a mix of both lengths.
@@ -50,7 +52,11 @@ function build(language: Language): Lang {
       for (let i = 0; i + len <= w.length; i++) seen.add(w.slice(i, i + len));
     }
     for (const s of seen) counts.set(s, (counts.get(s) ?? 0) + 1);
-  }
+  };
+
+  for (const raw of source) ingest(raw);
+  // Hand-curated extras (modern/loanwords) the base list misses.
+  for (const raw of extraWords(language)) ingest(raw);
 
   return { words, counts, pools: new Map() };
 }

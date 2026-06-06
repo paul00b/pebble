@@ -26,15 +26,20 @@ export {
   BOMB_BONUS_ALPHABET,
   CN_WORDS,
   D9_BOUNDS,
+  PB_CATEGORIES,
+  PB_BOUNDS,
+  PB_DEFAULT_CATEGORIES,
   sanitizeBombParty,
   sanitizeCodenames,
   sanitizeDevine9,
+  sanitizePetitBac,
   sanitizeSettings,
 } from "./settings";
 export type {
   BombPartySettings,
   CodenamesSettings,
   Devine9Settings,
+  PetitBacSettings,
   AllSettings,
 } from "./settings";
 export { bullHeads } from "./games";

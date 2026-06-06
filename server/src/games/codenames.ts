@@ -9,12 +9,16 @@ import type {
   CodenamesMember,
   CodenamesTeam,
   CodenamesView,
+  DrawOp,
   GameAction,
 } from "../../../shared/src/games.js";
 import type { ActionContext, GameEngine, InitOptions } from "./engine.js";
 import { pickCodenamesWords } from "./codenamesWords.js";
 
 const other = (t: CodenamesTeam): CodenamesTeam => (t === "red" ? "blue" : "red");
+
+/** Cap on the shared waiting-room whiteboard's stored strokes. */
+const MAX_OPS = 6000;
 
 interface CNState {
   phase: "setup" | "clue" | "guess" | "over";
@@ -26,9 +30,24 @@ interface CNState {
   turnTeam: CodenamesTeam;
   clue: { word: string; count: number } | null;
   guessesLeft: number;
+  /** Operative votes this turn: playerId → card index. Cleared each reveal/turn. */
+  votes: Record<string, number>;
   remaining: { red: number; blue: number };
   winner: CodenamesTeam | null;
   endReason: "swept" | "assassin" | null;
+  /** Shared whiteboard strokes — a place for the waiting team to doodle while
+   *  the other team plays. Purely cosmetic; never affects the game. */
+  ops: DrawOp[];
+}
+
+/** Who's allowed to draw on the waiting-room whiteboard: anyone with a team,
+ *  except the team currently taking its turn (they're busy playing). Before the
+ *  game kicks off (setup) everyone may doodle. */
+function mayDraw(state: CNState, pid: string): boolean {
+  const me = state.members[pid];
+  if (!me || me.team == null) return false;
+  if (state.phase === "setup") return true;
+  return me.team !== state.turnTeam;
 }
 
 function buildKey(startTeam: CodenamesTeam): CodenamesCardColor[] {
@@ -74,9 +93,11 @@ export const codenames: GameEngine<CNState> = {
       turnTeam: startTeam,
       clue: null,
       guessesLeft: 0,
+      votes: {},
       remaining: { red: startTeam === "red" ? 9 : 8, blue: startTeam === "blue" ? 9 : 8 },
       winner: null,
       endReason: null,
+      ops: [],
     };
   },
 
@@ -107,7 +128,17 @@ export const codenames: GameEngine<CNState> = {
       const count = Math.max(0, Math.min(9, Math.floor(a.count)));
       state.clue = { word: a.word.trim().slice(0, 30), count };
       state.guessesLeft = count + 1; // one bonus guess, per the rules
+      state.votes = {};
       state.phase = "guess";
+      return true;
+    }
+    if (a.type === "vote") {
+      if (state.phase !== "guess" || me.team !== state.turnTeam || me.role !== "operative")
+        return false;
+      if (a.index < 0 || a.index >= 25 || state.revealed[a.index] !== null) return false;
+      // Click the card you already voted for to retract; otherwise (re)cast.
+      if (state.votes[pid] === a.index) delete state.votes[pid];
+      else state.votes[pid] = a.index;
       return true;
     }
     if (a.type === "endTurn") {
@@ -123,6 +154,7 @@ export const codenames: GameEngine<CNState> = {
 
       const color = state.key[a.index];
       state.revealed[a.index] = color;
+      state.votes = {}; // resolved a card — clear the slate for the next vote
 
       if (color === "assassin") {
         state.winner = other(state.turnTeam);
@@ -159,6 +191,7 @@ export const codenames: GameEngine<CNState> = {
   onLeave(state, pid): boolean {
     if (!state.members[pid]) return false;
     delete state.members[pid];
+    delete state.votes[pid];
     state.order = state.order.filter((id) => id !== pid);
     if (state.order.length === 0 && state.phase !== "over") {
       state.phase = "over";
@@ -169,6 +202,16 @@ export const codenames: GameEngine<CNState> = {
 
   isOver: (state) => state.phase === "over",
 
+  // Waiting-room whiteboard (shared real-time draw side-channel). Only the team
+  // that isn't currently playing may draw; strokes persist across turns.
+  drawOps: (state) => state.ops,
+  applyDrawOp(state, pid, op: DrawOp): boolean {
+    if (!mayDraw(state, pid)) return false;
+    if (op.t === "clear") state.ops = [];
+    else if (state.ops.length < MAX_OPS) state.ops.push(op);
+    return true;
+  },
+
   view: (state) => cnView(state, null),
   playerView: (state, pid) => cnView(state, pid),
 };
@@ -177,6 +220,7 @@ function endTurn(state: CNState) {
   state.turnTeam = other(state.turnTeam);
   state.clue = null;
   state.guessesLeft = 0;
+  state.votes = {};
   state.phase = "clue";
 }
 
@@ -191,6 +235,12 @@ function cnView(state: CNState, viewer: string | null): CodenamesView {
     role: state.members[id].role,
   }));
 
+  const votes: string[][] = Array.from({ length: 25 }, () => []);
+  for (const [id, idx] of Object.entries(state.votes)) {
+    if (idx >= 0 && idx < 25) votes[idx].push(id);
+  }
+  const youVote = viewer != null && viewer in state.votes ? state.votes[viewer] : null;
+
   return {
     kind: "codenames",
     phase: state.phase,
@@ -204,6 +254,8 @@ function cnView(state: CNState, viewer: string | null): CodenamesView {
     remaining: state.remaining,
     youTeam: me?.team ?? null,
     youRole: me?.role ?? "operative",
+    votes,
+    youVote,
     winner: state.winner,
     endReason: state.endReason,
   };

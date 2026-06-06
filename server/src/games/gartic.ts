@@ -8,14 +8,16 @@ import type {
   DrawOp,
   GameAction,
   GarticAction,
+  GarticChoice,
   GarticMessage,
   GarticView,
 } from "../../../shared/src/games.js";
 import type { ActionContext, GameEngine, InitOptions } from "./engine.js";
 import { normalize } from "./dictionary.js";
-import { randomWord } from "./garticWords.js";
+import { randomWord, wordChoices } from "./garticWords.js";
 
 const DRAW_MS = 80_000;
+const CHOOSE_MS = 15_000; // the drawer's window to pick one of two words
 const DRAWER_BONUS = 20;
 const MAX_OPS = 6000;
 const MAX_MESSAGES = 40;
@@ -23,11 +25,12 @@ const MAX_MESSAGES = 40;
 interface GarticState {
   language: InitOptions["language"];
   order: string[];
-  phase: "drawing" | "reveal" | "done";
+  phase: "choosing" | "drawing" | "reveal" | "done";
   drawerIndex: number;
   round: number;
   totalRounds: number;
   word: string;
+  choices: GarticChoice[];
   deadline: number;
   scores: Record<string, number>;
   guessed: Set<string>;
@@ -47,13 +50,31 @@ function nonDrawers(s: GarticState): string[] {
   return s.order.filter((id) => id !== d);
 }
 
+/** Open a fresh turn in the "choosing" phase: the drawer gets two word options
+ *  and 15s to pick one (else the turn passes on, see {@link advanceTurn}). */
 function beginRound(s: GarticState, now: number) {
-  s.word = randomWord(s.language);
-  s.deadline = now + DRAW_MS;
+  s.word = "";
+  s.choices = wordChoices(s.language);
+  s.deadline = now + CHOOSE_MS;
   s.guessed = new Set();
   s.messages = [];
   s.ops = [];
-  s.phase = "drawing";
+  s.phase = "choosing";
+}
+
+/** Move to the next drawer, or end the game after a full lap. Used both by the
+ *  host's "next" and by an automatic skip when a drawer doesn't pick in time. */
+function advanceTurn(s: GarticState, now: number) {
+  if (s.round >= s.totalRounds) {
+    s.phase = "done";
+    s.over = true;
+    s.winnerId =
+      [...s.order].sort((x, y) => (s.scores[y] ?? 0) - (s.scores[x] ?? 0))[0] ?? null;
+  } else {
+    s.round += 1;
+    s.drawerIndex = (s.drawerIndex + 1) % s.order.length;
+    beginRound(s, now);
+  }
 }
 
 export const gartic: GameEngine<GarticState> = {
@@ -69,6 +90,7 @@ export const gartic: GameEngine<GarticState> = {
       round: 1,
       totalRounds: order.length, // one lap: everyone draws once
       word: "",
+      choices: [],
       deadline: 0,
       scores,
       guessed: new Set(),
@@ -84,6 +106,17 @@ export const gartic: GameEngine<GarticState> = {
   action(state, pid, action: GameAction, ctx: ActionContext): boolean {
     if (state.over) return false;
     const a = action as GarticAction;
+
+    if (a.type === "choose") {
+      if (state.phase !== "choosing" || pid !== drawerId(state)) return false;
+      const choice = state.choices[a.index];
+      if (!choice) return false;
+      state.word = choice.word;
+      state.choices = [];
+      state.deadline = ctx.now + DRAW_MS;
+      state.phase = "drawing";
+      return true;
+    }
 
     if (a.type === "guess") {
       if (state.phase !== "drawing") return false;
@@ -109,16 +142,7 @@ export const gartic: GameEngine<GarticState> = {
 
     if (a.type === "next") {
       if (state.phase !== "reveal" || !ctx.isHost) return false;
-      if (state.round >= state.totalRounds) {
-        state.phase = "done";
-        state.over = true;
-        state.winnerId =
-          [...state.order].sort((x, y) => (state.scores[y] ?? 0) - (state.scores[x] ?? 0))[0] ?? null;
-      } else {
-        state.round += 1;
-        state.drawerIndex = (state.drawerIndex + 1) % state.order.length;
-        beginRound(state, ctx.now);
-      }
+      advanceTurn(state, ctx.now);
       return true;
     }
     return false;
@@ -126,6 +150,11 @@ export const gartic: GameEngine<GarticState> = {
 
   tick(state, now): boolean {
     if (state.over) return false;
+    // The drawer dawdled past the 15s pick window — skip to the next player.
+    if (state.phase === "choosing" && now >= state.deadline) {
+      advanceTurn(state, now);
+      return true;
+    }
     if (state.phase === "drawing" && now >= state.deadline) {
       state.phase = "reveal";
       return true;
@@ -147,7 +176,11 @@ export const gartic: GameEngine<GarticState> = {
     }
     state.drawerIndex %= state.order.length;
     // If the drawer bailed mid-round, jump to the reveal so the host can move on.
-    if (wasDrawer && state.phase === "drawing") state.phase = "reveal";
+    if (wasDrawer && (state.phase === "drawing" || state.phase === "choosing")) {
+      if (!state.word) state.word = state.choices[0]?.word ?? ""; // show something at reveal
+      state.choices = [];
+      state.phase = "reveal";
+    }
     return true;
   },
 
@@ -175,6 +208,7 @@ function push(state: GarticState, m: Omit<GarticMessage, "id" | "name">) {
 function garticView(state: GarticState, viewer: string | null): GarticView {
   const d = drawerId(state);
   const showWord = viewer === d || state.phase !== "drawing";
+  const isDrawer = viewer === d;
   return {
     kind: "gartic",
     phase: state.phase,
@@ -182,8 +216,10 @@ function garticView(state: GarticState, viewer: string | null): GarticView {
     round: state.round,
     totalRounds: state.totalRounds,
     deadline: state.deadline,
+    duration: state.phase === "choosing" ? CHOOSE_MS : DRAW_MS,
     word: showWord ? state.word : mask(state.word),
     wordMasked: !showWord,
+    choices: isDrawer && state.phase === "choosing" ? state.choices : [],
     players: state.order.map((id) => ({
       id,
       score: state.scores[id] ?? 0,

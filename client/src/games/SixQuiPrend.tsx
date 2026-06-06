@@ -85,6 +85,7 @@ const DROP_MS = 380; // a card falling onto its row
 const GAP_MS = 230; // pause between two placements
 const SCOOP_MS = 720; // a full row gathering into the player
 const BANNER_MS = 1900; // "X scoops N 🐂" stays up
+const END_HOLD_MS = 850; // let the final card settle before the scoreboard appears
 
 interface Banner {
   playerId: string;
@@ -94,10 +95,17 @@ interface Banner {
 
 function useResolution(game: SixQuiPrendView) {
   const reduce = useReducedMotion();
+  const baseKey = JSON.stringify(game.lastStartRows ?? null);
+  const sig = `${game.turn}|${game.lastTurn?.length ?? 0}|${baseKey}`;
+  const hasResolution = !!game.lastStartRows && (game.lastTurn?.length ?? 0) > 0;
+
   const [rows, setRows] = useState<number[][]>(() => game.rows.map((r) => [...r]));
   const [scoopRow, setScoopRow] = useState<number | null>(null);
   const [banner, setBanner] = useState<Banner | null>(null);
   const [animating, setAnimating] = useState(false);
+  // Signature of the resolution we've fully replayed. Seeded with the mount value
+  // so a refresh/reconnect doesn't replay a stale `lastTurn`.
+  const [shownSig, setShownSig] = useState(sig);
 
   const gameRef = useRef(game);
   gameRef.current = game;
@@ -105,14 +113,11 @@ function useResolution(game: SixQuiPrendView) {
   // Treat whatever resolution exists on first mount as already shown (avoids
   // replaying a stale `lastTurn` after a refresh/reconnect).
   const ctl = useRef({
-    baseKey: JSON.stringify(game.lastStartRows ?? null),
+    baseKey,
     done: game.lastTurn?.length ?? 0,
     rows: game.rows.map((r) => [...r]),
     timers: [] as number[],
   });
-
-  const baseKey = JSON.stringify(game.lastStartRows ?? null);
-  const sig = `${game.turn}|${game.lastTurn?.length ?? 0}|${baseKey}`;
 
   useEffect(() => {
     const g = gameRef.current;
@@ -132,6 +137,7 @@ function useResolution(game: SixQuiPrendView) {
       setRows(c.rows.map((r) => [...r]));
       setScoopRow(null);
       setAnimating(false);
+      setShownSig(sig);
       return;
     }
 
@@ -145,7 +151,10 @@ function useResolution(game: SixQuiPrendView) {
       setScoopRow(null);
     }
 
-    if (c.done >= entries.length) return;
+    if (c.done >= entries.length) {
+      setShownSig(sig);
+      return;
+    }
 
     // Reduced motion: jump straight to the final table.
     if (reduce) {
@@ -153,6 +162,7 @@ function useResolution(game: SixQuiPrendView) {
       c.done = entries.length;
       setRows(c.rows.map((r) => [...r]));
       setAnimating(false);
+      setShownSig(sig);
       return;
     }
 
@@ -162,6 +172,9 @@ function useResolution(game: SixQuiPrendView) {
       const list = gameRef.current.lastTurn ?? [];
       if (cur.done >= list.length) {
         setAnimating(false);
+        // Hold the final frame briefly so the last drop/scoop is seen before the
+        // game-over scoreboard swaps in (no-op mid-game — the board just waits).
+        cur.timers.push(window.setTimeout(() => setShownSig(sig), END_HOLD_MS));
         return;
       }
       const e = list[cur.done];
@@ -198,7 +211,11 @@ function useResolution(game: SixQuiPrendView) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig]);
 
-  return { rows, scoopRow, banner, animating };
+  // The current authoritative resolution has been fully replayed. Reduced-motion
+  // users and turns with nothing to animate are "finished" immediately.
+  const finished = !hasResolution || !!reduce || shownSig === sig;
+
+  return { rows, scoopRow, banner, animating, finished };
 }
 
 export function SixQuiPrend({ room }: { room: RoomState }) {
@@ -211,9 +228,11 @@ export function SixQuiPrend({ room }: { room: RoomState }) {
     [room.players]
   );
 
-  const { rows, scoopRow, banner, animating } = useResolution(game);
+  const { rows, scoopRow, banner, animating, finished } = useResolution(game);
 
-  if (game.over) return <SixResults game={game} players={players} youId={youId} t={t} />;
+  // Once the game ends, let the final cards finish landing/scooping before we
+  // swap in the scoreboard — otherwise the last animation is never seen.
+  if (game.over && finished) return <SixResults game={game} players={players} youId={youId} t={t} />;
 
   const myTakeRow = game.phase === "takeRow" && game.pendingPlayerId === youId;
   const otherTakeRow = game.phase === "takeRow" && game.pendingPlayerId !== youId;
@@ -443,6 +462,7 @@ function SixResults({
 }) {
   const room = useStore((s) => s.room);
   const toLobby = useStore((s) => s.toLobby);
+  const retry = useStore((s) => s.retry);
   const isHost = room?.hostId === youId;
   const rows = [...game.players].sort((a, b) => a.bulls - b.bulls);
   const maxBulls = Math.max(1, ...rows.map((r) => r.bulls));
@@ -512,9 +532,14 @@ function SixResults({
           })}
         </ul>
         {isHost ? (
-          <Button full className="mt-6" onClick={toLobby}>
-            {t("common.backToLobby")}
-          </Button>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button full onClick={toLobby}>
+              {t("common.backToLobby")}
+            </Button>
+            <Button full variant="ghost" onClick={retry}>
+              {t("common.retry")}
+            </Button>
+          </div>
         ) : (
           <div className="mt-6 text-sm text-mist">{t("common.waitingHost")}</div>
         )}

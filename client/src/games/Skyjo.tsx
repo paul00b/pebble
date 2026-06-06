@@ -518,6 +518,7 @@ function SkyjoResults({
 }) {
   const room = useStore((s) => s.room);
   const toLobby = useStore((s) => s.toLobby);
+  const retry = useStore((s) => s.retry);
   const isHost = room?.hostId === youId;
   const scores = game.finalScores ?? {};
   const rows = [...game.players].sort((a, b) => (scores[a.id] ?? 0) - (scores[b.id] ?? 0));
@@ -585,9 +586,14 @@ function SkyjoResults({
           })}
         </ul>
         {isHost ? (
-          <Button full className="mt-6" onClick={toLobby}>
-            {t("common.backToLobby")}
-          </Button>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button full onClick={toLobby}>
+              {t("common.backToLobby")}
+            </Button>
+            <Button full variant="ghost" onClick={retry}>
+              {t("common.retry")}
+            </Button>
+          </div>
         ) : (
           <div className="mt-6 text-sm text-mist">{t("common.waitingHost")}</div>
         )}

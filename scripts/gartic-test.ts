@@ -10,18 +10,39 @@ const ok = (c: unknown, m: string) => {
 const players = (...ids: string[]) =>
   ids.map((id) => ({ id, name: id, avatar: "🎨", color: "#fff", isHost: false, connected: true, joinedAt: 0 }));
 
+// Advance past the choosing phase into drawing, then pin the secret word so
+// guessing is deterministic.
 function fresh(ids: string[]): any {
   const s = gartic.init(players(...ids), 0, { language: "en" });
-  s.word = "apple"; // pin the secret for deterministic guessing
+  gartic.action(s, s.order[0], { type: "choose", index: 0 }, { now: 0, isHost: false });
+  s.word = "apple";
   return s;
 }
 
-// 1. Setup: first player draws, one lap, everyone at zero.
+// 1. Setup: the first player picks a word from two options (one always easy).
 {
-  const s = fresh(["a", "b", "c"]);
-  ok(s.phase === "drawing" && s.drawerIndex === 0, "gartic: starts in drawing with the first player as drawer");
+  const s = gartic.init(players("a", "b", "c"), 0, { language: "en" });
+  ok(s.phase === "choosing" && s.drawerIndex === 0, "gartic: starts in the choosing phase for the first drawer");
+  ok(s.choices.length === 2, "gartic: the drawer is offered two words");
+  ok(s.choices.some((c: any) => c.difficulty === "easy"), "gartic: at least one option is easy");
   ok(s.totalRounds === 3, "gartic: one lap = one round per player");
   ok(s.scores.a === 0 && s.scores.b === 0, "gartic: everyone starts at zero");
+
+  ok(gartic.action(s, "b", { type: "choose", index: 0 }, { now: 0, isHost: false }) === false,
+    "gartic: non-drawers cannot choose the word");
+  const chosen = s.choices[1].word;
+  gartic.action(s, "a", { type: "choose", index: 1 }, { now: 0, isHost: false });
+  ok(s.phase === "drawing" && s.word === chosen, "gartic: choosing a word starts the drawing phase");
+}
+
+// 1b. Failing to pick within the 15s window passes the turn to the next drawer.
+{
+  const s = gartic.init(players("a", "b"), 0, { language: "en" });
+  ok(s.phase === "choosing", "gartic: a new turn opens in the choosing phase");
+  ok(gartic.tick(s, s.deadline - 1) === false, "gartic: no skip before the choose deadline");
+  gartic.tick(s, s.deadline);
+  ok(s.phase === "choosing" && s.drawerIndex === 1 && s.round === 2,
+    "gartic: missing the pick window passes to the next drawer");
 }
 
 // 2. The drawer cannot guess; a correct guess scores guesser + drawer bonus.
@@ -66,7 +87,7 @@ function fresh(ids: string[]): any {
   ok(gartic.action(s, "a", { type: "next" }, { now: 0, isHost: false }) === false,
     "gartic: only the host can advance");
   gartic.action(s, "a", { type: "next" }, { now: 0, isHost: true });
-  ok(s.round === 2 && s.drawerIndex === 1 && s.phase === "drawing", "gartic: next rotates the drawer");
+  ok(s.round === 2 && s.drawerIndex === 1 && s.phase === "choosing", "gartic: next rotates the drawer into a new choice");
   s.phase = "reveal";
   s.scores.a = 100; s.scores.b = 30;
   gartic.action(s, "a", { type: "next" }, { now: 0, isHost: true });

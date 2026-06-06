@@ -18,13 +18,26 @@ import {
   D9_BOUNDS,
   GAMES,
   gameById,
+  PB_BOUNDS,
+  PB_CATEGORIES,
+  PB_DEFAULT_CATEGORIES,
   type BombPartySettings,
   type CodenamesSettings,
   type Devine9Settings,
+  type Language,
+  type PetitBacSettings,
   type RoomState,
 } from "@shared";
 
-export function Lobby({ room }: { room: RoomState }) {
+export function Lobby({
+  room,
+  onSandbox,
+  sandboxOpen,
+}: {
+  room: RoomState;
+  onSandbox: () => void;
+  sandboxOpen: boolean;
+}) {
   const t = useT();
   const youId = useStore((s) => s.youId);
   const selectGame = useStore((s) => s.selectGame);
@@ -70,7 +83,9 @@ export function Lobby({ room }: { room: RoomState }) {
   // Tapping the empty space around the cards flings confetti that everyone
   // in the room sees, at the same relative spot on each screen.
   useEffect(() => {
-    if (room.phase !== "lobby") return;
+    // While the physics sandbox is open, clicks drive the shapes — don't also
+    // fling confetti. It re-arms automatically when the sandbox closes.
+    if (room.phase !== "lobby" || sandboxOpen) return;
     const INTERACTIVE = "button, a, input, textarea, select, [role='button'], [contenteditable]";
     let last = 0;
     const onDown = (e: PointerEvent) => {
@@ -86,7 +101,7 @@ export function Lobby({ room }: { room: RoomState }) {
     };
     window.addEventListener("pointerdown", onDown);
     return () => window.removeEventListener("pointerdown", onDown);
-  }, [room.phase, pushConfetti, sendConfetti]);
+  }, [room.phase, pushConfetti, sendConfetti, sandboxOpen]);
 
   if (room.phase === "playing") return <GamePlay room={room} onLeave={leave} />;
 
@@ -99,6 +114,14 @@ export function Lobby({ room }: { room: RoomState }) {
           <ConnectionBadge />
           <SoundToggle />
           <LanguageToggle />
+          <Button
+            variant="ghost"
+            onClick={onSandbox}
+            title={t("landing.sandbox")}
+            className="px-3 py-2 text-sm"
+          >
+            🧩 <span className="hidden sm:inline">{t("landing.sandbox")}</span>
+          </Button>
           <Button variant="ghost" onClick={leave} className="px-4 py-2 text-sm">
             {t("common.leave")}
           </Button>
@@ -119,7 +142,7 @@ export function Lobby({ room }: { room: RoomState }) {
             </div>
           </div>
 
-          <GlassCard className="p-5">
+          <GlassCard className="sandbox-solid p-5">
             <div className="mb-3 flex items-baseline justify-between gap-3">
               <h2 className="font-display text-xl font-semibold text-cloud">
                 {t("lobby.chooseGame")}
@@ -253,7 +276,7 @@ export function Lobby({ room }: { room: RoomState }) {
 
         {/* ── Right: players + chat ────────────────────────────────────── */}
         <div className="flex min-h-0 flex-col gap-5">
-          <GlassCard className="p-5">
+          <GlassCard className="sandbox-solid p-5">
             <h2 className="mb-3 font-display text-xl font-semibold text-cloud">
               {t("lobby.players")}
             </h2>
@@ -323,7 +346,7 @@ function Chat({ room, youId }: { room: RoomState; youId: string | null }) {
   };
 
   return (
-    <GlassCard className="flex min-h-[16rem] flex-1 flex-col p-5">
+    <GlassCard className="sandbox-solid flex min-h-[16rem] flex-1 flex-col p-5">
       <h2 className="mb-3 font-display text-xl font-semibold text-cloud">{t("lobby.chat")}</h2>
       <div ref={scrollRef} className="flex-1 space-y-2 overflow-y-auto pr-1">
         {room.chat.length === 0 && (
@@ -366,6 +389,7 @@ function GameRules({ room, isHost }: { room: RoomState; isHost: boolean }) {
   const editable =
     room.selectedGame === "bombparty" ||
     room.selectedGame === "codenames" ||
+    room.selectedGame === "petitbac" ||
     room.selectedGame === "devine9";
 
   return (
@@ -390,6 +414,13 @@ function GameRules({ room, isHost }: { room: RoomState; isHost: boolean }) {
           s={room.settings.codenames}
           isHost={isHost}
           onChange={(patch) => updateSettings("codenames", patch)}
+        />
+      ) : room.selectedGame === "petitbac" ? (
+        <PetitBacRules
+          s={room.settings.petitbac}
+          language={room.gameLanguage}
+          isHost={isHost}
+          onChange={(patch) => updateSettings("petitbac", patch)}
         />
       ) : room.selectedGame === "devine9" ? (
         <Devine9Rules
@@ -561,6 +592,129 @@ function CodenamesRules({
           ? t("set.cn.ready", { n: count })
           : t("set.cn.need", { n: count, min: CN_WORDS.minToUse })}
       </p>
+    </div>
+  );
+}
+
+function PetitBacRules({
+  s,
+  language,
+  isHost,
+  onChange,
+}: {
+  s: PetitBacSettings;
+  language: Language;
+  isHost: boolean;
+  onChange: (patch: Record<string, unknown>) => void;
+}) {
+  const t = useT();
+  const [draft, setDraft] = useState("");
+
+  const lower = (x: string) => x.trim().toLowerCase();
+  const defaults = PB_DEFAULT_CATEGORIES[language];
+  // Empty settings → play the language defaults (all checked).
+  const selected = s.categories.length ? s.categories : defaults;
+  const selectedSet = useMemo(() => new Set(selected.map(lower)), [selected]);
+
+  // Pool shown as toggles: every default, plus any custom the host has added.
+  const pool = useMemo(() => {
+    const out = [...defaults];
+    const have = new Set(defaults.map(lower));
+    for (const c of selected) {
+      if (!have.has(lower(c))) {
+        out.push(c);
+        have.add(lower(c));
+      }
+    }
+    return out;
+  }, [defaults, selected]);
+
+  const count = selected.length;
+  const atMin = count <= PB_CATEGORIES.min;
+  const atMax = count >= PB_CATEGORIES.max;
+
+  const toggle = (cat: string) => {
+    if (!isHost) return;
+    const on = selectedSet.has(lower(cat));
+    if (on && atMin) return; // never drop below the minimum
+    const next = on ? selected.filter((c) => lower(c) !== lower(cat)) : [...selected, cat];
+    onChange({ categories: next });
+  };
+
+  const add = () => {
+    if (!isHost) return;
+    const clean = draft.trim().replace(/\s+/g, " ").slice(0, PB_CATEGORIES.maxLen);
+    if (!clean || atMax || selectedSet.has(clean.toLowerCase())) {
+      setDraft("");
+      return;
+    }
+    onChange({ categories: [...selected, clean] });
+    setDraft("");
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Stepper
+        label={t("set.pb.minWrite")}
+        value={s.minWriteSec}
+        step={5}
+        format={(v) => t("set.seconds", { n: v })}
+        min={PB_BOUNDS.minWriteSec.min}
+        max={PB_BOUNDS.minWriteSec.max}
+        disabled={!isHost}
+        onChange={(v) => onChange({ minWriteSec: v })}
+      />
+
+      <div className="flex flex-col gap-2">
+        <div className="flex items-baseline justify-between">
+          <span className="text-sm text-cloud">{t("set.pb.categories")}</span>
+          <span className={`text-xs ${atMin ? "text-amber-300" : "text-faint"}`}>
+            {t("set.pb.count", { n: count, min: PB_CATEGORIES.min })}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {pool.map((cat) => {
+            const on = selectedSet.has(lower(cat));
+            const lockedOff = on && atMin; // can't uncheck the last allowed ones
+            return (
+              <button
+                key={cat}
+                disabled={!isHost || lockedOff}
+                onClick={() => toggle(cat)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  on
+                    ? "bg-accent text-ink-900"
+                    : "bg-white/5 text-mist enabled:hover:bg-white/10"
+                } ${!isHost || lockedOff ? "cursor-default" : ""} ${
+                  !isHost ? "opacity-80" : ""
+                }`}
+              >
+                {on ? "✓ " : ""}
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+
+        {isHost && (
+          <div className="flex gap-2">
+            <input
+              value={draft}
+              maxLength={PB_CATEGORIES.maxLen}
+              disabled={atMax}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && add()}
+              placeholder={t("set.pb.addPlaceholder")}
+              className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-cloud outline-none placeholder:text-faint focus:border-accent/50 focus:ring-2 focus:ring-accent/30 disabled:opacity-50"
+            />
+            <Button onClick={add} variant="ghost" className="px-4 py-2 text-sm" disabled={atMax || !draft.trim()}>
+              {t("set.pb.add")}
+            </Button>
+          </div>
+        )}
+        <p className="text-xs leading-snug text-faint">{t("set.pb.hint")}</p>
+      </div>
     </div>
   );
 }

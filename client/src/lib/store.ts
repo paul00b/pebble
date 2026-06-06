@@ -60,6 +60,7 @@ interface PebbleState {
   updateSettings: (game: GameId, patch: Record<string, unknown>) => void;
   newBoardWord: () => void;
   start: () => Promise<{ ok: boolean; reason?: string }>;
+  retry: () => void;
   toLobby: () => void;
   gameAction: (action: GameAction) => void;
   kick: (playerId: string) => void;
@@ -159,6 +160,13 @@ export const useStore = create<PebbleState>((set, get) => ({
 
   start: () =>
     new Promise((resolve) => socket.emit("room:start", resolve)),
+
+  // Replay the same game without detouring through the lobby. Server `start`
+  // re-inits the engine regardless of phase, so we just fire it again.
+  retry: async () => {
+    const res = await get().start();
+    if (!res.ok) get().pushNotice("warn", res.reason ?? "Can't replay yet.");
+  },
 
   toLobby: () => socket.emit("room:toLobby"),
 

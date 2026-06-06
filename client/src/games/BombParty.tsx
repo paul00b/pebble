@@ -93,7 +93,7 @@ export function BombParty({ room }: { room: RoomState }) {
   if (game.over) return <BombResults game={game} players={players} youId={youId} t={t} />;
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-between gap-6 pb-6">
+    <div className="flex flex-1 flex-col items-center gap-6 pb-6">
       {/* Players + lives */}
       <div className="flex flex-wrap items-center justify-center gap-3">
         {game.order
@@ -136,6 +136,9 @@ export function BombParty({ room }: { room: RoomState }) {
           })}
       </div>
 
+      {/* Bomb, last word, and input stay grouped together so the gap below the
+          bomb never balloons on tall screens. */}
+      <div className="flex flex-1 flex-col items-center justify-center gap-4">
       {/* Bomb + ring + prompt */}
       <div className="relative grid place-items-center">
         <svg width="280" height="280" className="-rotate-90">
@@ -221,10 +224,11 @@ export function BombParty({ room }: { room: RoomState }) {
           </div>
         )}
         {youId && game.order.includes(youId) && (
-          <div className="mt-4">
+          <div className="mt-3">
             <AlphabetStrip used={game.alphabet[youId] ?? ""} hint={t("bomb.alphabetHint")} />
           </div>
         )}
+      </div>
       </div>
     </div>
   );
@@ -328,17 +332,21 @@ function RecentChip({
   );
 }
 
-/** The local player's bonus-alphabet progress (lit letters = banked). */
+/** The local player's bonus-alphabet progress. Letters still to use glow green
+ *  (your remaining targets); letters already banked fade grey — so it reads at a
+ *  glance which ones you still need. */
 function AlphabetStrip({ used, hint }: { used: string; hint: string }) {
   const set = new Set(used);
   return (
-    <div className="flex flex-col items-center gap-1">
-      <div className="flex flex-wrap justify-center gap-0.5">
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="flex flex-wrap justify-center gap-1">
         {BOMB_BONUS_ALPHABET.map((c) => (
           <span
             key={c}
-            className={`grid h-5 w-5 place-items-center rounded text-[0.7rem] font-semibold uppercase transition-colors ${
-              set.has(c) ? "bg-accent/30 text-accent" : "bg-white/5 text-faint"
+            className={`grid h-7 w-7 place-items-center rounded-md text-sm font-bold uppercase transition-colors ${
+              set.has(c)
+                ? "bg-white/5 text-faint"
+                : "bg-emerald-400/20 text-emerald-300"
             }`}
           >
             {c}
@@ -363,6 +371,7 @@ function BombResults({
 }) {
   const room = useStore((s) => s.room);
   const toLobby = useStore((s) => s.toLobby);
+  const retry = useStore((s) => s.retry);
   const isHost = room?.hostId === youId;
   const winner = game.winnerId ? players[game.winnerId] : null;
 
@@ -396,9 +405,14 @@ function BombResults({
           <div className="mt-2 font-display text-2xl text-cloud">{t("bomb.gameOver")}</div>
         )}
         {isHost ? (
-          <Button full className="mt-6" onClick={toLobby}>
-            {t("common.backToLobby")}
-          </Button>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button full onClick={toLobby}>
+              {t("common.backToLobby")}
+            </Button>
+            <Button full variant="ghost" onClick={retry}>
+              {t("common.retry")}
+            </Button>
+          </div>
         ) : (
           <div className="mt-6 text-sm text-mist">{t("common.waitingHost")}</div>
         )}

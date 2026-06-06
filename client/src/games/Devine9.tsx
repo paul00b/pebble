@@ -184,11 +184,16 @@ function Round({
             <p className="text-center text-xs text-faint">{t("d9.readAloud")}</p>
           )}
 
+          {/* during reveal, let the card-holder fix answers they missed */}
+          {reveal && game.youAreChecker && (
+            <p className="text-center text-xs text-faint">{t("d9.adjustHint")}</p>
+          )}
+
           {/* the 9 answers */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {(game.answers ?? []).map((word, i) => {
               const found = game.found[i];
-              const clickable = game.youAreChecker && game.started && !reveal;
+              const clickable = game.youAreChecker && (game.started || reveal);
               return (
                 <motion.button
                   key={i}
@@ -214,11 +219,11 @@ function Round({
           {/* the bomb word */}
           {game.bomb != null && (
             <motion.button
-              disabled={!(game.youAreChecker && game.started && !reveal)}
+              disabled={!(game.youAreChecker && (game.started || reveal))}
               onClick={() =>
-                game.youAreChecker && game.started && !reveal && gameAction({ type: "bomb" })
+                game.youAreChecker && (game.started || reveal) && gameAction({ type: "bomb" })
               }
-              whileTap={game.youAreChecker && game.started && !reveal ? { scale: 0.97 } : undefined}
+              whileTap={game.youAreChecker && (game.started || reveal) ? { scale: 0.97 } : undefined}
               className="flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors"
               style={{
                 background: game.bombHit ? "rgba(251,113,133,0.22)" : "rgba(251,113,133,0.06)",
@@ -295,6 +300,7 @@ function Results({
 }) {
   const room = useStore((s) => s.room);
   const toLobby = useStore((s) => s.toLobby);
+  const retry = useStore((s) => s.retry);
   const isHost = room?.hostId === youId;
   const youWon = game.winner !== "tie" && game.winner != null && game.youTeam === game.winner;
 
@@ -320,9 +326,14 @@ function Results({
           <span style={{ color: TEAM_HEX.blue }}>{game.scores.blue}</span>
         </div>
         {isHost ? (
-          <Button full className="mt-6" onClick={toLobby}>
-            {t("common.backToLobby")}
-          </Button>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button full onClick={toLobby}>
+              {t("common.backToLobby")}
+            </Button>
+            <Button full variant="ghost" onClick={retry}>
+              {t("common.retry")}
+            </Button>
+          </div>
         ) : (
           <div className="mt-6 text-sm text-mist">{t("common.waitingHost")}</div>
         )}
