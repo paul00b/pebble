@@ -7,6 +7,8 @@ import { codenames } from "./codenames.js";
 import { skyjo } from "./skyjo.js";
 import { gartic } from "./gartic.js";
 import { devine9 } from "./devine9.js";
+import { spyfall } from "./spyfall.js";
+import { complots } from "./complots.js";
 
 export const ENGINES: Record<GameId, GameEngine<any>> = {
   bombparty: bombParty,
@@ -16,4 +18,6 @@ export const ENGINES: Record<GameId, GameEngine<any>> = {
   skyjo,
   gartic,
   devine9,
+  spyfall,
+  complots,
 };

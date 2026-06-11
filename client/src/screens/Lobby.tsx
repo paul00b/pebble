@@ -21,11 +21,13 @@ import {
   PB_BOUNDS,
   PB_CATEGORIES,
   PB_DEFAULT_CATEGORIES,
+  SF_BOUNDS,
   type BombPartySettings,
   type CodenamesSettings,
   type Devine9Settings,
   type Language,
   type PetitBacSettings,
+  type SpyfallSettings,
   type RoomState,
 } from "@shared";
 
@@ -390,7 +392,8 @@ function GameRules({ room, isHost }: { room: RoomState; isHost: boolean }) {
     room.selectedGame === "bombparty" ||
     room.selectedGame === "codenames" ||
     room.selectedGame === "petitbac" ||
-    room.selectedGame === "devine9";
+    room.selectedGame === "devine9" ||
+    room.selectedGame === "spyfall";
 
   return (
     <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -428,6 +431,14 @@ function GameRules({ room, isHost }: { room: RoomState; isHost: boolean }) {
           isHost={isHost}
           onChange={(patch) => updateSettings("devine9", patch)}
         />
+      ) : room.selectedGame === "spyfall" ? (
+        <SpyfallRules
+          s={room.settings.spyfall}
+          isHost={isHost}
+          onChange={(patch) => updateSettings("spyfall", patch)}
+        />
+      ) : room.selectedGame === "complots" ? (
+        <RulesList prefix="cp" steps={["card", "claim", "liar", "block", "coins", "win"]} />
       ) : room.selectedGame === "sixquiprend" ? (
         <RulesList prefix="sixqp" steps={["pick", "place", "sixth", "low", "win"]} />
       ) : room.selectedGame === "skyjo" ? (
@@ -750,6 +761,33 @@ function Devine9Rules({
         onChange={(v) => onChange({ roundsPerTeam: v })}
       />
       <p className="text-xs leading-snug text-faint">{t("set.d9.hint")}</p>
+    </div>
+  );
+}
+
+function SpyfallRules({
+  s,
+  isHost,
+  onChange,
+}: {
+  s: SpyfallSettings;
+  isHost: boolean;
+  onChange: (patch: Record<string, number>) => void;
+}) {
+  const t = useT();
+  return (
+    <div className="flex flex-col gap-4">
+      <Stepper
+        label={t("set.sf.roundSec")}
+        value={s.roundSec}
+        step={30}
+        format={(v) => `${Math.floor(v / 60)}:${(v % 60).toString().padStart(2, "0")}`}
+        min={SF_BOUNDS.roundSec.min}
+        max={SF_BOUNDS.roundSec.max}
+        disabled={!isHost}
+        onChange={(v) => onChange({ roundSec: v })}
+      />
+      <p className="text-xs leading-snug text-faint">{t("set.sf.hint")}</p>
     </div>
   );
 }

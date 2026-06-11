@@ -6,6 +6,8 @@ import { Codenames } from "./Codenames";
 import { Skyjo } from "./Skyjo";
 import { Gartic } from "./Gartic";
 import { Devine9 } from "./Devine9";
+import { Spyfall } from "./Spyfall";
+import { Complots } from "./Complots";
 import { useStore } from "@/lib/store";
 import { gameById, type RoomState } from "@shared";
 
@@ -26,6 +28,8 @@ export function GamePlay({ room, onLeave }: { room: RoomState; onLeave: () => vo
       {room.game?.kind === "skyjo" && <Skyjo room={room} />}
       {room.game?.kind === "gartic" && <Gartic room={room} />}
       {room.game?.kind === "devine9" && <Devine9 room={room} />}
+      {room.game?.kind === "spyfall" && <Spyfall room={room} />}
+      {room.game?.kind === "complots" && <Complots room={room} />}
       {!room.game && (
         <div className="grid flex-1 place-items-center text-mist">Loading game…</div>
       )}

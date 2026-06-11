@@ -88,6 +88,17 @@ export const D9_BOUNDS = {
   roundsPerTeam: { min: 1, max: 8 },
 } as const;
 
+/* ── Spyfall ─────────────────────────────────────────────────────────────── */
+
+export interface SpyfallSettings {
+  /** Length of the questioning round, in seconds. */
+  roundSec: number;
+}
+
+export const SF_BOUNDS = {
+  roundSec: { min: 120, max: 600 },
+} as const;
+
 /** One settings object per game. Games without options use an empty object. */
 export interface AllSettings {
   bombparty: BombPartySettings;
@@ -97,6 +108,8 @@ export interface AllSettings {
   skyjo: Record<string, never>;
   gartic: Record<string, never>;
   devine9: Devine9Settings;
+  spyfall: SpyfallSettings;
+  complots: Record<string, never>;
 }
 
 export const DEFAULT_SETTINGS: AllSettings = {
@@ -114,6 +127,8 @@ export const DEFAULT_SETTINGS: AllSettings = {
   skyjo: {},
   gartic: {},
   devine9: { turnSec: 60, roundsPerTeam: 3 },
+  spyfall: { roundSec: 360 },
+  complots: {},
 };
 
 /** Editable ranges, shared by the client UI and server validation. */
@@ -209,6 +224,14 @@ export function sanitizeDevine9(patch: Partial<Devine9Settings>): Devine9Setting
   };
 }
 
+/** Clamp an (untrusted) Spyfall settings patch into valid, complete settings. */
+export function sanitizeSpyfall(patch: Partial<SpyfallSettings>): SpyfallSettings {
+  const d = DEFAULT_SETTINGS.spyfall;
+  return {
+    roundSec: clampInt(patch.roundSec, SF_BOUNDS.roundSec.min, SF_BOUNDS.roundSec.max, d.roundSec),
+  };
+}
+
 /** Merge a patch into a game's current settings and return validated settings. */
 export function sanitizeSettings<G extends GameId>(
   game: G,
@@ -226,6 +249,9 @@ export function sanitizeSettings<G extends GameId>(
   }
   if (game === "devine9") {
     return sanitizeDevine9({ ...(current as Devine9Settings), ...patch } as Partial<Devine9Settings>) as AllSettings[G];
+  }
+  if (game === "spyfall") {
+    return sanitizeSpyfall({ ...(current as SpyfallSettings), ...patch } as Partial<SpyfallSettings>) as AllSettings[G];
   }
   // Games without options ignore patches.
   return current;

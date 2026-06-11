@@ -12,7 +12,9 @@ export type GameId =
   | "codenames"
   | "skyjo"
   | "gartic"
-  | "devine9";
+  | "devine9"
+  | "spyfall"
+  | "complots";
 
 /** High-level phase of a room. */
 export type RoomPhase = "lobby" | "playing" | "results";
@@ -141,6 +143,24 @@ export const GAMES: GameMeta[] = [
     minPlayers: 2,
     maxPlayers: 12,
     duration: "10–15 min",
+  },
+  {
+    id: "spyfall",
+    name: "Spyfall",
+    tagline: "Everyone knows the place — except the spy. Question, bluff, accuse.",
+    emoji: "🔎",
+    minPlayers: 3,
+    maxPlayers: 10,
+    duration: "6–10 min",
+  },
+  {
+    id: "complots",
+    name: "Complots",
+    tagline: "One hidden card. Claim any role you like — until someone calls liar.",
+    emoji: "🎭",
+    minPlayers: 3,
+    maxPlayers: 8,
+    duration: "5–10 min",
   },
 ];
 

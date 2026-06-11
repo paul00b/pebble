@@ -251,7 +251,7 @@ On your go, I'll start **Phase 0 + Phase 1**: scaffold the monorepo and build th
 
 ## 13. Build status / resume notes
 
-> Living log of what's actually built, so work can be picked up on any machine. Last updated: **2026-05-30**.
+> Living log of what's actually built, so work can be picked up on any machine. Last updated: **2026-06-11**.
 
 ### Repo reality (vs. §5 plan)
 - Workspace name is **`pebble`** (npm workspaces, not pnpm). Two workspaces: `client/` (React + Vite) and `server/` (Node + Socket.IO). Shared types live in **`shared/src/`** and are imported by relative path (`../../../shared/src/*.js`) on the server and via the `@shared` alias on the client.
@@ -295,3 +295,22 @@ npm run test:engine
 1. Manual two-tab playtest of Gartic (draw relay, guessing, scoring, round rotation, reconnection mid-draw).
 2. Consider a `scripts/gartic-socket.mjs` e2e like the other socket tests; add it to `test:games`.
 3. Continue §8 Phase 5 (more games) or move to Phase 4 (VPS deploy) per §9.
+
+### Session 2026-06-11 — Spyfall + Complots (COMPLETE)
+Two new social-deduction games, both server-authoritative with per-player hidden views (`playerView`).
+
+**Spyfall** (`spyfall`, 3–10 players, 🔎)
+- Everyone gets the location + a role except the spy. One timed questioning round (host-configurable `roundSec`, 120–600s) with a social "who's asking" cue, the full location list as common knowledge, and a tap-to-peek secret card.
+- Endgames: the spy may guess the location at any time (one shot); each player can call ONE emergency vote (timer expiry also opens the final vote); a unique plurality accuses; a caught spy gets a 40s "steal" guess. Tie → spy escapes.
+- Files: `server/src/games/spyfall.ts` + `spyfallLocations.ts` (20 FR + 20 EN locations, ≥9 roles each — follows the room's game-content language), `client/src/games/Spyfall.tsx`, `SpyfallSettings`/`SF_BOUNDS` in shared settings.
+
+**Complots** (`complots`, 3–8 players, 🎭) — one-card Coup
+- One hidden role card (3× Duc/Assassin/Capitaine/Comtesse) + 2 coins each; one card = one life; last alive wins.
+- Actions: income +1, foreign aid +2 (Duke-blockable), tax +3 (claims Duke), steal 2 (claims Captain, target counter-claims Captain), assassinate −3 (claims Assassin, target counter-claims Contessa), coup −7 (unstoppable, mandatory at 10+).
+- 15s reaction windows (pass / block / "Menteur !") driven by the shared 200ms tick — silence is consent; challenges flip the card live (truthful claimer swaps for a fresh card) followed by a 4s resolve splash.
+- Files: `server/src/games/complots.ts`, `client/src/games/Complots.tsx`. No host settings.
+
+**Verification**
+- `npm run typecheck` + `npm run build` — clean.
+- `npm run test:engine` — 230 checks across 8 games, incl. 30 Spyfall + 38 Complots.
+- `node scripts/new-games-smoke.mjs` (server running) — 24 live-socket checks: 3 clients, hidden views, vote→steal flow, claim→challenge→reveal flow. Wired into `test:games`.

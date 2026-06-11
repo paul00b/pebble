@@ -384,6 +384,150 @@ export type Devine9Action =
   | { type: "bomb" }
   | { type: "next" };
 
+/* ── Spyfall ─────────────────────────────────────────────────────────────── */
+
+export type SpyfallPhase = "playing" | "voting" | "spyguess" | "over";
+
+/** How the round ended:
+ *  guess      — the spy guessed the location mid-round (spy wins)
+ *  wrongGuess — the spy guessed wrong (crew wins)
+ *  innocent   — the vote accused an innocent (spy wins)
+ *  escaped    — the vote was inconclusive / tied (spy wins)
+ *  caught     — the spy was voted out and missed the steal guess (crew wins)
+ *  steal      — the spy was voted out but named the location (spy wins)
+ *  left       — the spy left the game (crew wins) */
+export type SpyfallReason =
+  | "guess"
+  | "wrongGuess"
+  | "innocent"
+  | "escaped"
+  | "caught"
+  | "steal"
+  | "left";
+
+export interface SpyfallView {
+  kind: "spyfall";
+  phase: SpyfallPhase;
+  /** Players still in the round, in turn order. */
+  order: string[];
+  /** Whose turn it is to ask a question (purely a social cue). */
+  askerId: string;
+  /** Deadline (epoch ms) of the current timed phase. */
+  deadline: number;
+  /** Full length (ms) of the current timed phase — for animating the timer. */
+  duration: number;
+  /** Every possible location — common knowledge, the spy's guess menu. */
+  locations: string[];
+  youAreSpy: boolean;
+  /** Your secret card. Null for the spy until the reveal. */
+  location: string | null;
+  role: string | null;
+  /** Who called the emergency vote (null when the timer triggered it). */
+  calledBy: string | null;
+  /** Whether the viewer can still call a vote (one per player per round). */
+  canCallVote: boolean;
+  /** Player ids who have cast a vote (targets stay secret). */
+  voted: string[];
+  /** The viewer's current vote target, or null. */
+  youVote: string | null;
+  /** The spy, revealed once caught (spyguess) or at the end. */
+  spyId: string | null;
+  /** The player the vote landed on, if any. */
+  accusedId: string | null;
+  /** The spy's final location guess (shown at the end). */
+  spyGuess: string | null;
+  winner: "spy" | "crew" | null;
+  reason: SpyfallReason | null;
+  over: boolean;
+}
+
+export type SpyfallAction =
+  | { type: "nextAsker" }
+  | { type: "callVote" }
+  | { type: "vote"; playerId: string }
+  | { type: "spyGuess"; index: number };
+
+/* ── Complots (one-card Coup) ────────────────────────────────────────────── */
+
+export type ComplotsRole = "duke" | "assassin" | "captain" | "contessa";
+
+export type ComplotsActKind = "income" | "foreign" | "tax" | "steal" | "assassin" | "coup";
+
+export type ComplotsPhase = "action" | "react" | "blockReact" | "resolve" | "over";
+
+export interface ComplotsPlayerPublic {
+  id: string;
+  coins: number;
+  alive: boolean;
+  /** The card shown when this player was eliminated. */
+  revealed: ComplotsRole | null;
+}
+
+/** The declared action awaiting reactions — claims are public, cards are not. */
+export interface ComplotsPending {
+  act: ComplotsActKind;
+  actorId: string;
+  targetId: string | null;
+  /** The role the actor claims for this action (tax/steal/assassin). */
+  claim: ComplotsRole | null;
+  /** Someone has declared a counter-claim block. */
+  blockerId: string | null;
+  blockRole: ComplotsRole | null;
+}
+
+/** What just resolved — drives the dramatic splash + toasts client-side. */
+export interface ComplotsEvent {
+  type: "income" | "foreign" | "tax" | "steal" | "coup" | "assassinated" | "blocked" | "challenge";
+  actorId: string;
+  act: ComplotsActKind;
+  targetId?: string | null;
+  /** Challenge verification: who called liar, who was checked, what was shown. */
+  challengerId?: string;
+  challengedId?: string;
+  claimed?: ComplotsRole;
+  shown?: ComplotsRole;
+  truthful?: boolean;
+  /** Whoever lost their card in this event. */
+  eliminatedId?: string | null;
+  /** Coins gained/stolen, for display. */
+  amount?: number;
+  blockerId?: string | null;
+  blockRole?: ComplotsRole | null;
+  at: number;
+}
+
+export interface ComplotsView {
+  kind: "complots";
+  phase: ComplotsPhase;
+  players: ComplotsPlayerPublic[];
+  /** Whose turn it is to act. */
+  currentId: string;
+  /** The viewer's hidden card (null once eliminated). */
+  youCard: ComplotsRole | null;
+  deckCount: number;
+  pending: ComplotsPending | null;
+  /** Reaction-window / resolve-pause deadline (epoch ms; 0 when none). */
+  deadline: number;
+  duration: number;
+  /** Players who have waved the pending action through. */
+  passed: string[];
+  /** What the viewer may do right now (server-computed eligibility). */
+  youCanPass: boolean;
+  youCanChallenge: boolean;
+  youCanBlock: boolean;
+  /** With 10+ coins the current player must coup. */
+  mustCoup: boolean;
+  lastEvent: ComplotsEvent | null;
+  winnerId: string | null;
+  over: boolean;
+}
+
+export type ComplotsAction =
+  | { type: "act"; act: ComplotsActKind; target?: string }
+  | { type: "pass" }
+  | { type: "block" }
+  | { type: "challenge" };
+
 /* ── Unions ──────────────────────────────────────────────────────────────── */
 
 export type GameView =
@@ -393,7 +537,9 @@ export type GameView =
   | CodenamesView
   | SkyjoView
   | GarticView
-  | Devine9View;
+  | Devine9View
+  | SpyfallView
+  | ComplotsView;
 export type GameAction =
   | BombPartyAction
   | PetitBacAction
@@ -401,4 +547,6 @@ export type GameAction =
   | CodenamesAction
   | SkyjoAction
   | GarticAction
-  | Devine9Action;
+  | Devine9Action
+  | SpyfallAction
+  | ComplotsAction;
