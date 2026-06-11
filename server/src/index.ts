@@ -1,4 +1,4 @@
-// Pebble game server — authoritative Socket.IO server with in-memory rooms.
+// Pebble game server - authoritative Socket.IO server with in-memory rooms.
 // Clients send intents; the server validates, mutates room state, and
 // broadcasts the full snapshot back to everyone in the room.
 
@@ -18,7 +18,7 @@ const PORT = Number(process.env.PORT ?? 3001);
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ?? "*";
 
 // In production we serve the built client from the same origin (one container,
-// one hostname — friendly to reverse proxies / Cloudflare tunnels). Defaults to
+// one hostname - friendly to reverse proxies / Cloudflare tunnels). Defaults to
 // the workspace's client/dist; only enabled if that folder actually exists, so
 // local `npm run dev` (Vite serves the client) is unaffected.
 const PUBLIC_DIR =
@@ -282,6 +282,6 @@ httpServer.listen(PORT, () => {
   console.log(
     SERVE_STATIC
       ? `      serving client from ${PUBLIC_ROOT}\n`
-      : `      (client served separately — dev mode)\n`
+      : `      (client served separately - dev mode)\n`
   );
 });

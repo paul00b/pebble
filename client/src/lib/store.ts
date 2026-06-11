@@ -215,7 +215,7 @@ export function wireSocket() {
     pushNotice(notice.kind, translate(locale, notice.key, notice.params));
   });
 
-  // Someone else flung confetti — spawn it at the same relative spot here.
+  // Someone else flung confetti - spawn it at the same relative spot here.
   socket.on("room:confetti", ({ x, y, color }) => {
     useStore.getState().pushConfetti(x, y, color);
   });

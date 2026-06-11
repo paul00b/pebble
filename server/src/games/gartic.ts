@@ -1,4 +1,4 @@
-// Gartic — one player draws a secret word while everyone races to guess it in
+// Gartic - one player draws a secret word while everyone races to guess it in
 // the chat. Faster guesses score more; the drawer earns a bonus per correct
 // guesser. Drawing pixels travel on a separate real-time channel (draw ops),
 // kept out of the heavy room snapshot.
@@ -150,7 +150,7 @@ export const gartic: GameEngine<GarticState> = {
 
   tick(state, now): boolean {
     if (state.over) return false;
-    // The drawer dawdled past the 15s pick window — skip to the next player.
+    // The drawer dawdled past the 15s pick window - skip to the next player.
     if (state.phase === "choosing" && now >= state.deadline) {
       advanceTurn(state, now);
       return true;

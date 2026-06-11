@@ -28,7 +28,7 @@ interface Lang {
 
 const cache = new Map<Language, Lang>();
 
-/** Hard floor on the syllable pool — never let a custom threshold starve it. */
+/** Hard floor on the syllable pool - never let a custom threshold starve it. */
 const MIN_POOL = 60;
 
 function build(language: Language): Lang {
@@ -43,10 +43,10 @@ function build(language: Language): Lang {
   const ingest = (raw: string) => {
     const w = normalize(raw);
     if (w.length < 3) return;
-    if (words.has(w)) return; // already counted — don't double-bump syllables
+    if (words.has(w)) return; // already counted - don't double-bump syllables
     words.add(w);
 
-    // Syllables of 2 or 3 letters — the game shows a mix of both lengths.
+    // Syllables of 2 or 3 letters - the game shows a mix of both lengths.
     const seen = new Set<string>();
     for (let len = 2; len <= 3; len++) {
       for (let i = 0; i + len <= w.length; i++) seen.add(w.slice(i, i + len));
@@ -88,7 +88,7 @@ function pool(language: Language, minWords: number): string[] {
     prompts = [];
     for (const [s, c] of lang.counts) if (c >= threshold) prompts.push(s);
     if (prompts.length >= MIN_POOL) break;
-    threshold = Math.floor(threshold / 2); // too rare — loosen and retry
+    threshold = Math.floor(threshold / 2); // too rare - loosen and retry
   }
   lang.pools.set(minWords, prompts);
   return prompts;

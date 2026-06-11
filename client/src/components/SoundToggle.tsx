@@ -1,6 +1,6 @@
 import { playSound, toggleMuted, useMuted } from "@/lib/sound";
 
-/** Compact mute switch — sits alongside the language toggle / connection badge. */
+/** Compact mute switch - sits alongside the language toggle / connection badge. */
 export function SoundToggle() {
   const muted = useMuted();
   return (

@@ -162,7 +162,7 @@ function Review({
   const isHost = room?.hostId === youId;
   const review = game.review;
 
-  // My own votes this category (optimistic — survives the server re-broadcast).
+  // My own votes this category (optimistic - survives the server re-broadcast).
   const [myVotes, setMyVotes] = useState<Set<string>>(() => new Set());
   useEffect(() => setMyVotes(new Set()), [review?.index]);
 
@@ -260,7 +260,7 @@ function Review({
                 >
                   {p && <Avatar emoji={p.avatar} color={p.color} size={30} />}
                   <span className="w-24 shrink-0 truncate text-sm text-mist">
-                    {p?.name ?? "—"}
+                    {p?.name ?? "-"}
                     {mine && <span className="text-faint"> ·{t("common.you")}</span>}
                   </span>
                   <span
@@ -272,14 +272,14 @@ function Review({
                           : "text-rose-300 line-through"
                     }`}
                   >
-                    {cell.answer || "—"}
+                    {cell.answer || "-"}
                   </span>
                   {!blank && !matches && (
                     <span title={`≠ ${game.letter}`} className="text-xs text-amber-300">
                       ⚠
                     </span>
                   )}
-                  {/* bad-vote tally — fills toward the majority that strikes it */}
+                  {/* bad-vote tally - fills toward the majority that strikes it */}
                   {!blank && (cell.badVotes > 0 || iVoted) && (
                     <span
                       className={`rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums ${
@@ -355,7 +355,7 @@ function Reveal({
                           : "text-faint line-through"
                       }
                     >
-                      {cell.answer || "—"}
+                      {cell.answer || "-"}
                     </span>
                     <span
                       className="ml-auto rounded-md px-1.5 py-0.5 text-xs font-semibold"
@@ -473,7 +473,7 @@ function Scoreboard({
             <span className="w-5 text-center text-sm text-faint">{i + 1}</span>
             {p && <Avatar emoji={p.avatar} color={p.color} size={28} />}
             <span className={`flex-1 truncate text-sm ${r.id === youId ? "text-accent" : "text-cloud"}`}>
-              {p?.name ?? "—"}
+              {p?.name ?? "-"}
             </span>
             {compact && r.round > 0 && (
               <span className="text-xs text-faint">+{r.round}</span>

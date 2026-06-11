@@ -4,7 +4,7 @@ import { socket } from "@/lib/socket";
 import { useT } from "@/lib/useT";
 import type { DrawOp } from "@shared";
 
-/* Canvas background — also what the eraser paints with. */
+/* Canvas background - also what the eraser paints with. */
 const BG = "#f7faf9";
 
 /* Palette + brush sizes (CSS px at the canvas's displayed width). */
@@ -53,7 +53,7 @@ const hexToRgb = (hex: string): [number, number, number] => {
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 };
 
-/** Flood-fill the contiguous region at (px,py) — normalized — with `hex`. */
+/** Flood-fill the contiguous region at (px,py) - normalized - with `hex`. */
 function floodFill(ctx: CanvasRenderingContext2D, W: number, H: number, px: number, py: number, hex: string) {
   const x = Math.round(px * W);
   const y = Math.round(py * H);

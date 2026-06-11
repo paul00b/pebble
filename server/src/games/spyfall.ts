@@ -1,17 +1,17 @@
-// Spyfall — everyone secretly shares a location (and a role in it) except one
+// Spyfall - everyone secretly shares a location (and a role in it) except one
 // player: the spy. The group asks each other questions out loud; the app keeps
 // the clock, the secret cards, the "who's asking" cue and the endgame votes.
 //
 // Round flow:
-//   playing  — the timer runs; players interrogate each other. At any moment
+//   playing  - the timer runs; players interrogate each other. At any moment
 //              the spy may guess the location (right = spy wins, wrong = crew
 //              wins) and any player may call ONE emergency vote. The timer
 //              running out also triggers the vote.
-//   voting   — everyone secretly picks a suspect. A unique plurality accuses;
+//   voting   - everyone secretly picks a suspect. A unique plurality accuses;
 //              a tie (or apathy) lets the spy escape.
-//   spyguess — the vote landed on the spy: they get one last-chance location
+//   spyguess - the vote landed on the spy: they get one last-chance location
 //              guess to steal the win.
-//   over     — full reveal.
+//   over     - full reveal.
 
 import type { Player } from "../../../shared/src/types.js";
 import type {
@@ -100,7 +100,7 @@ function resolveVotes(s: SFState, now: number) {
   }
   s.accusedId = best;
   if (best === s.spyId) {
-    // Caught — but the spy gets one shot at naming the location.
+    // Caught - but the spy gets one shot at naming the location.
     s.phase = "spyguess";
     s.deadline = now + STEAL_MS;
     s.duration = STEAL_MS;
@@ -204,7 +204,7 @@ export const spyfall: GameEngine<SFState> = {
       resolveVotes(state, now);
       return true;
     }
-    // spyguess timeout — the spy froze, the crew takes it.
+    // spyguess timeout - the spy froze, the crew takes it.
     finish(state, "crew", "caught");
     return true;
   },

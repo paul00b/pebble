@@ -1,6 +1,6 @@
 // In-memory authoritative room store. The server is the single source of truth:
 // it owns every room's state, mutates it in response to validated events, and
-// notifies listeners to re-broadcast. No database — rooms are ephemeral.
+// notifies listeners to re-broadcast. No database - rooms are ephemeral.
 
 import { generateRoomCode } from "./roomCode.js";
 import { ENGINES } from "./games/registry.js";
@@ -274,7 +274,7 @@ export class RoomManager {
     this.touch(room);
   }
 
-  /** Host picks a game at random — weighted by votes when any have been cast. */
+  /** Host picks a game at random - weighted by votes when any have been cast. */
   randomGame(code: string, requesterId: string) {
     const room = this.rooms.get(code);
     if (!room || room.hostId !== requesterId || room.phase !== "lobby") return;

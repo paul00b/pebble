@@ -1,8 +1,8 @@
-// A tiny synthesized sound engine — zero audio assets, everything is generated
+// A tiny synthesized sound engine - zero audio assets, everything is generated
 // live with the Web Audio API. Keeps the app lightweight and offline-friendly.
 //
-// Usage:  playSound("right")   — fire a named effect (no-ops when muted/unsupported)
-//         useMuted() / toggleMuted()  — React mute toggle, persisted to localStorage
+// Usage:  playSound("right")   - fire a named effect (no-ops when muted/unsupported)
+//         useMuted() / toggleMuted()  - React mute toggle, persisted to localStorage
 //
 // Adding a game's sounds later = add entries to SOUND_NAMES + SYNTHS below.
 
@@ -114,7 +114,7 @@ function tone(c: AudioContext, dest: AudioNode, o: ToneOpts): void {
   osc.stop(t0 + o.dur + 0.05);
 }
 
-/** A filtered white-noise burst with a frequency sweep — the body of an explosion. */
+/** A filtered white-noise burst with a frequency sweep - the body of an explosion. */
 function noise(
   c: AudioContext,
   dest: AudioNode,
@@ -180,7 +180,7 @@ const SYNTHS: Record<SoundName, (c: AudioContext, dest: AudioNode) => void> = {
     tone(c, d, { freq: 420, type: "square", dur: 0.07, gain: 0.09 });
     tone(c, d, { freq: 420, type: "square", delay: 0.12, dur: 0.07, gain: 0.09 });
   },
-  // Boom: a layered explosion — sharp crack, saturated body, low rumble tail,
+  // Boom: a layered explosion - sharp crack, saturated body, low rumble tail,
   // and a pitch-dropping sub thump underneath.
   explode: (c, d) => {
     // Grit bus: the body runs through a soft-clipper for punch.
@@ -190,7 +190,7 @@ const SYNTHS: Record<SoundName, (c: AudioContext, dest: AudioNode) => void> = {
 
     // 1) Sharp initial crack (bright, very short).
     noise(c, d, { dur: 0.09, gain: 0.7, from: 7000, to: 1800, type: "highpass", attack: 0.001 });
-    // 2) Main body — full-spectrum blast sweeping down, distorted.
+    // 2) Main body - full-spectrum blast sweeping down, distorted.
     noise(c, shaper, { dur: 1.0, gain: 0.6, from: 2200, to: 80, type: "lowpass", attack: 0.004 });
     // 3) Long low rumble tail.
     noise(c, d, { dur: 1.5, gain: 0.32, from: 500, to: 40, type: "lowpass", attack: 0.03, delay: 0.04 });
@@ -228,14 +228,14 @@ const SYNTHS: Record<SoundName, (c: AudioContext, dest: AudioNode) => void> = {
     noise(c, d, { dur: 0.1, gain: 0.13, from: 1600, to: 5200, type: "bandpass", attack: 0.001 });
     tone(c, d, { freq: 480, to: 760, type: "triangle", dur: 0.08, gain: 0.05 });
   },
-  // A column clearing: a bright ascending sparkle — a small reward.
+  // A column clearing: a bright ascending sparkle - a small reward.
   clear: (c, d) => {
     [660, 880, 1320].forEach((f, i) =>
       tone(c, d, { freq: f, type: "triangle", delay: i * 0.07, dur: 0.16, gain: 0.13 })
     );
     tone(c, d, { freq: 1760, type: "sine", delay: 0.18, dur: 0.26, gain: 0.06 });
   },
-  // Attention chime — "last turn!" two-tone doorbell.
+  // Attention chime - "last turn!" two-tone doorbell.
   alert: (c, d) => {
     tone(c, d, { freq: 880, type: "triangle", dur: 0.22, gain: 0.18 });
     tone(c, d, { freq: 660, type: "triangle", delay: 0.2, dur: 0.34, gain: 0.18 });

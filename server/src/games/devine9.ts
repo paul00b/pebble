@@ -1,8 +1,8 @@
-// Devine 9 — two teams take turns. On a turn, one team (the "checker") holds the
+// Devine 9 - two teams take turns. On a turn, one team (the "checker") holds the
 // card: they see the theme, the 9 answers and the bomb word, read the theme aloud
 // and tick answers as the OTHER team (the active/guessing team) shouts them out.
 // Each ticked answer = +1; saying the bomb word = −5 (the timer keeps running).
-// When the timer runs out — or all 9 are found — points go to the guessing team
+// When the timer runs out - or all 9 are found - points go to the guessing team
 // and the card is revealed to everyone. Highest total after N turns each wins.
 
 import type { Player } from "../../../shared/src/types.js";

@@ -1,5 +1,5 @@
 // Live smoke test: drive Spyfall and Complots through the socket server
-// exactly as browser clients would — three players, per-player hidden views.
+// exactly as browser clients would - three players, per-player hidden views.
 import { io } from "socket.io-client";
 
 const URL = "http://localhost:3001";
@@ -123,6 +123,55 @@ const ident = (name) => ({ sessionId: `ng-${name}-${Math.random().toString(36).s
   ok(["action", "over"].includes(a.state.game.phase), "complots: play moved on after the pause");
 
   a.sock.close(); b.sock.close(); c.sock.close();
+}
+
+// ── Château Combo ──────────────────────────────────────────────────────────
+{
+  const a = mkClient("a"), b = mkClient("b");
+  await connected(a); await connected(b);
+
+  const created = await new Promise((r) => a.sock.emit("room:create", { identity: ident("Alice"), game: "chateau" }, r));
+  const code = created.room.code;
+  const aId = created.you;
+  const jb = await new Promise((r) => b.sock.emit("room:join", { code, identity: ident("Bob") }, r));
+  const bId = jb.you;
+
+  const started = await new Promise((r) => a.sock.emit("room:start", r));
+  ok(started.ok, "chateau: host started the game");
+  await wait(300);
+
+  const g = a.state.game;
+  ok(g?.kind === "chateau" && g.phase === "playing", "chateau: playing view broadcast");
+  ok(g.messenger === "village" && g.market.village.filter(Boolean).length === 3,
+    "chateau: the Messenger opens on a stocked Village row");
+  const me = g.players.find((p) => p.id === aId);
+  ok(me.gold === 15 && me.keys === 2 && g.currentId === aId,
+    "chateau: 15 gold + 2 keys, first joiner opens");
+
+  // Alice spends a key to move the Messenger, then buys from the Château row.
+  a.sock.emit("game:action", { type: "messenger" });
+  await wait(250);
+  ok(a.state.game.messenger === "castle" && a.state.game.players.find((p) => p.id === aId).keys === 1,
+    "chateau: a key moves the Messenger");
+
+  a.sock.emit("game:action", { type: "buy", index: 0, cell: 4 });
+  await wait(300);
+  const after = a.state.game;
+  const meAfter = after.players.find((p) => p.id === aId);
+  ok(meAfter.placed === 1 && meAfter.grid[4] !== null, "chateau: the card landed in the grid");
+  ok(after.currentId === bId, "chateau: the turn passed to Bob");
+  ok(after.market.castle.filter(Boolean).length === 3, "chateau: the bought slot was refilled");
+  ok(b.state.game.players.find((p) => p.id === aId).grid[4] !== null,
+    "chateau: tableaus are public to the whole room");
+
+  // Bob takes a card face-down.
+  b.sock.emit("game:action", { type: "buy", index: 1, cell: 0, faceDown: true });
+  await wait(300);
+  const bob = a.state.game.players.find((p) => p.id === bId);
+  ok(bob.placed === 1 && bob.grid[0]?.faceDown && bob.gold === 15 + 6 && bob.keys === 2 + 2,
+    "chateau: face-down pickup pays +6 gold +2 keys");
+
+  a.sock.close(); b.sock.close();
 }
 
 console.log(`\nSmoke: all ${pass} live-socket checks passed.`);

@@ -63,7 +63,7 @@ function CardCell({
         animate={{ rotateY: faceUp ? 0 : 180 }}
         transition={{ type: "spring", stiffness: 260, damping: 22, delay: colIndex * 0.05 }}
       >
-        {/* front — the value */}
+        {/* front - the value */}
         <span
           className="absolute inset-0 grid place-items-center rounded-lg font-display font-semibold"
           style={{
@@ -77,7 +77,7 @@ function CardCell({
         >
           {cell.value}
         </span>
-        {/* back — face-down */}
+        {/* back - face-down */}
         <span
           className="absolute inset-0 grid place-items-center rounded-lg text-faint"
           style={{
@@ -145,7 +145,7 @@ function PlayerGrid({
   );
 }
 
-/** Face-down pile (the deck) — a little stack of card backs. */
+/** Face-down pile (the deck) - a little stack of card backs. */
 function DeckPile({
   count,
   clickable,
@@ -278,7 +278,7 @@ export function Skyjo({ room }: { room: RoomState }) {
   useEffect(() => setMode("idle"), [game.stage, game.currentId]);
 
   // When the round closes, linger on the revealed table for a beat before the
-  // results card slides in — so everyone sees the final grids turn over.
+  // results card slides in - so everyone sees the final grids turn over.
   const [showResults, setShowResults] = useState(false);
   useEffect(() => {
     if (game.phase !== "done") {
@@ -319,7 +319,7 @@ export function Skyjo({ room }: { room: RoomState }) {
   };
 
   const discardCard = () => {
-    // If every card is already face-up there's nothing to flip — discard straight away.
+    // If every card is already face-up there's nothing to flip - discard straight away.
     const hasHidden = me?.grid.some((c) => c && !c.up);
     if (hasHidden) setMode("flipAfterDiscard");
     else gameAction({ type: "discardFlip", index: 0 });
@@ -398,7 +398,7 @@ export function Skyjo({ room }: { room: RoomState }) {
         ))}
       </div>
 
-      {/* centre: deck + discard (+ drawn card with Keep / Discard) — vertically
+      {/* centre: deck + discard (+ drawn card with Keep / Discard) - vertically
           centred in whatever space is left between the opponents and your grid */}
       <div className="relative flex flex-1 items-center justify-center gap-5 py-1 sm:gap-7">
         <div
@@ -576,7 +576,7 @@ function SkyjoResults({
                       r.id === youId ? "text-accent" : "text-cloud"
                     }`}
                   >
-                    {p?.name ?? "—"}
+                    {p?.name ?? "-"}
                     {r.id === game.closerId && <span className="ml-1 text-xs text-faint">🏁</span>}
                   </span>
                   <span className="font-display text-lg tabular-nums text-cloud sm:text-xl">{score}</span>

@@ -8,6 +8,7 @@ import { Gartic } from "./Gartic";
 import { Devine9 } from "./Devine9";
 import { Spyfall } from "./Spyfall";
 import { Complots } from "./Complots";
+import { Chateau } from "./Chateau";
 import { useStore } from "@/lib/store";
 import { gameById, type RoomState } from "@shared";
 
@@ -30,6 +31,7 @@ export function GamePlay({ room, onLeave }: { room: RoomState; onLeave: () => vo
       {room.game?.kind === "devine9" && <Devine9 room={room} />}
       {room.game?.kind === "spyfall" && <Spyfall room={room} />}
       {room.game?.kind === "complots" && <Complots room={room} />}
+      {room.game?.kind === "chateau" && <Chateau room={room} />}
       {!room.game && (
         <div className="grid flex-1 place-items-center text-mist">Loading game…</div>
       )}

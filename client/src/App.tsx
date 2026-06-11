@@ -7,7 +7,7 @@ import { Lobby } from "@/screens/Lobby";
 import { JoinFlow, type FlowMode } from "@/screens/JoinFlow";
 import { useStore } from "@/lib/store";
 
-// The physics sandbox pulls in matter.js — load it only when actually opened.
+// The physics sandbox pulls in matter.js - load it only when actually opened.
 const Sandbox = lazy(() =>
   import("@/screens/Sandbox").then((m) => ({ default: m.Sandbox }))
 );
@@ -50,7 +50,7 @@ export default function App() {
         />
       )}
 
-      {/* Solo physics playground — overlays the home screen or the lobby. */}
+      {/* Solo physics playground - overlays the home screen or the lobby. */}
       {sandbox && (
         <Suspense
           fallback={<div className="fixed inset-0 z-50 grid place-items-center bg-ink-800 text-faint">…</div>}

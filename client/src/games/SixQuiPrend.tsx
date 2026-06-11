@@ -7,7 +7,7 @@ import { useStore } from "@/lib/store";
 import { useT } from "@/lib/useT";
 import { bullHeads, type Player, type RoomState, type SixQuiPrendView } from "@shared";
 
-/* ── Card sizing presets (responsive — bigger on large screens) ───────────── */
+/* ── Card sizing presets (responsive - bigger on large screens) ───────────── */
 const TABLE_CARD =
   "h-[4.25rem] w-[3.05rem] rounded-xl text-lg sm:h-[5.25rem] sm:w-[3.8rem] sm:rounded-2xl sm:text-2xl lg:h-[5.9rem] lg:w-[4.25rem]";
 const HAND_CARD =
@@ -78,7 +78,7 @@ function Card({
    The server resolves a whole turn atomically: every chosen card lands on its
    row (and rows may be scooped) in one snapshot. To make it feel like cards
    being dealt onto the table, we replay `lastTurn` step-by-step on the client,
-   starting from `lastStartRows` (the pre-turn snapshot — scoops destroy the
+   starting from `lastStartRows` (the pre-turn snapshot - scoops destroy the
    pre-scoop content, so the final `rows` alone can't be rewound).            */
 
 const DROP_MS = 380; // a card falling onto its row
@@ -173,7 +173,7 @@ function useResolution(game: SixQuiPrendView) {
       if (cur.done >= list.length) {
         setAnimating(false);
         // Hold the final frame briefly so the last drop/scoop is seen before the
-        // game-over scoreboard swaps in (no-op mid-game — the board just waits).
+        // game-over scoreboard swaps in (no-op mid-game - the board just waits).
         cur.timers.push(window.setTimeout(() => setShownSig(sig), END_HOLD_MS));
         return;
       }
@@ -231,7 +231,7 @@ export function SixQuiPrend({ room }: { room: RoomState }) {
   const { rows, scoopRow, banner, animating, finished } = useResolution(game);
 
   // Once the game ends, let the final cards finish landing/scooping before we
-  // swap in the scoreboard — otherwise the last animation is never seen.
+  // swap in the scoreboard - otherwise the last animation is never seen.
   if (game.over && finished) return <SixResults game={game} players={players} youId={youId} t={t} />;
 
   const myTakeRow = game.phase === "takeRow" && game.pendingPlayerId === youId;
@@ -272,7 +272,7 @@ export function SixQuiPrend({ room }: { room: RoomState }) {
         </motion.div>
       </div>
 
-      {/* the table — four rows */}
+      {/* the table - four rows */}
       <div className="relative rounded-[var(--radius-pebble)] border border-white/8 bg-white/[0.03] p-3 sm:p-4">
         <div className="mb-2 text-xs uppercase tracking-[0.2em] text-faint">{t("sixqp.table")}</div>
         <div className="flex flex-col gap-2 sm:gap-3">
@@ -321,7 +321,7 @@ export function SixQuiPrend({ room }: { room: RoomState }) {
           })}
         </div>
 
-        {/* scoop banner — floats over the table */}
+        {/* scoop banner - floats over the table */}
         <AnimatePresence>
           {banner && (
             <motion.div
@@ -342,7 +342,7 @@ export function SixQuiPrend({ room }: { room: RoomState }) {
                 )}
                 <span className="text-rose-200">
                   {t("sixqp.scooped", {
-                    name: players[banner.playerId]?.name ?? "—",
+                    name: players[banner.playerId]?.name ?? "-",
                     n: banner.gained,
                   })}
                 </span>
@@ -440,7 +440,7 @@ export function SixQuiPrend({ room }: { room: RoomState }) {
               ))}
             </AnimatePresence>
             {handCards.length === 0 && myChosen == null && (
-              <span className="text-sm text-faint">—</span>
+              <span className="text-sm text-faint">-</span>
             )}
           </div>
         </div>
@@ -521,7 +521,7 @@ function SixResults({
                       r.id === youId ? "text-accent" : "text-cloud"
                     }`}
                   >
-                    {p?.name ?? "—"}
+                    {p?.name ?? "-"}
                   </span>
                   <span className="font-display text-lg tabular-nums text-cloud sm:text-xl">
                     {r.bulls}🐂

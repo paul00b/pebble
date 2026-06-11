@@ -85,7 +85,7 @@ export function Lobby({
   // Tapping the empty space around the cards flings confetti that everyone
   // in the room sees, at the same relative spot on each screen.
   useEffect(() => {
-    // While the physics sandbox is open, clicks drive the shapes — don't also
+    // While the physics sandbox is open, clicks drive the shapes - don't also
     // fling confetti. It re-arms automatically when the sandbox closes.
     if (room.phase !== "lobby" || sandboxOpen) return;
     const INTERACTIVE = "button, a, input, textarea, select, [role='button'], [contenteditable]";
@@ -181,7 +181,7 @@ export function Lobby({
                         : "border-white/10 bg-white/5 hover:bg-white/8"
                     }`}
                   >
-                    {/* Vote bubble — grows with the number of votes. */}
+                    {/* Vote bubble - grows with the number of votes. */}
                     <AnimatePresence>
                       {votes > 0 && (
                         <motion.span
@@ -439,6 +439,8 @@ function GameRules({ room, isHost }: { room: RoomState; isHost: boolean }) {
         />
       ) : room.selectedGame === "complots" ? (
         <RulesList prefix="cp" steps={["card", "claim", "liar", "block", "coins", "win"]} />
+      ) : room.selectedGame === "chateau" ? (
+        <RulesList prefix="ch" steps={["goal", "market", "place", "facedown", "combo", "score"]} />
       ) : room.selectedGame === "sixquiprend" ? (
         <RulesList prefix="sixqp" steps={["pick", "place", "sixth", "low", "win"]} />
       ) : room.selectedGame === "skyjo" ? (

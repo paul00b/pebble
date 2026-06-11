@@ -1,4 +1,4 @@
-// 6 Qui Prend (6 nimmt!) — a language-free card game. Cards 1–104 each carry
+// 6 Qui Prend (6 nimmt!) - a language-free card game. Cards 1–104 each carry
 // "bull head" penalties. Every turn all players secretly pick a card; cards are
 // then placed left-to-right in ascending order onto four rows. Lay the 6th card
 // in a row and you scoop its 5 cards (their bulls). Play a card lower than every
@@ -108,7 +108,7 @@ export const sixQuiPrend: GameEngine<SixState> = {
     }
 
     if (a.type === "unchoose") {
-      // Take a tentatively-played card back into the hand — only possible while
+      // Take a tentatively-played card back into the hand - only possible while
       // still choosing (once everyone has locked in, resolution has begun).
       if (state.phase !== "choosing") return false;
       if (state.chosen[playerId] == null) return false;
@@ -171,7 +171,7 @@ export const sixQuiPrend: GameEngine<SixState> = {
 /* ── internals ─────────────────────────────────────────────────────────────── */
 
 function beginResolve(state: SixState) {
-  // Snapshot the table before any card lands — the client replays from here.
+  // Snapshot the table before any card lands - the client replays from here.
   state.lastStartRows = state.rows.map((r) => [...r]);
   state.queue = state.order
     .map((pid) => ({ pid, card: state.chosen[pid]! }))

@@ -1,11 +1,11 @@
-// Petit Bac — the simultaneous-round game. A letter + fixed categories; everyone
+// Petit Bac - the simultaneous-round game. A letter + fixed categories; everyone
 // races to fill an answer for each that starts with the letter. A round ends on
 // the timer or when someone slams "Stop!". Clients live-sync their answers as
 // they type, so a Stop captures everyone's partial answers, not just the
 // stopper's. The table then *reviews* answers category by category on a fast
 // (~20s) per-category timer: every answer counts by default, and players vote
-// the wrong ones out — a majority of "bad" votes strikes an answer. Scoring runs
-// once review wraps up — a still-valid answer scores 2 if no one else gave the
+// the wrong ones out - a majority of "bad" votes strikes an answer. Scoring runs
+// once review wraps up - a still-valid answer scores 2 if no one else gave the
 // same one, 1 if shared, 0 if blank/struck out.
 
 import type { Player } from "../../../shared/src/types.js";
@@ -90,7 +90,7 @@ function beginRound(state: PBState, round: number, now: number) {
   state.roundScores = undefined;
 }
 
-/** Writing is over — hand the table off to fast, category-by-category voting. */
+/** Writing is over - hand the table off to fast, category-by-category voting. */
 function startReview(state: PBState, now: number) {
   state.reviewIndex = 0;
   state.votes = {};
@@ -186,7 +186,7 @@ export const petitBac: GameEngine<PBState> = {
       answers.slice(0, state.categories.length).map((s) => String(s).slice(0, 40));
 
     if (a.type === "draft") {
-      // Live answer sync while writing — keeps everyone's partial answers on the
+      // Live answer sync while writing - keeps everyone's partial answers on the
       // server so a Stop/timeout captures them. Silent (no re-broadcast needed).
       if (state.stage !== "writing") return false;
       state.answers[playerId] = clampAnswers(a.answers);
@@ -217,7 +217,7 @@ export const petitBac: GameEngine<PBState> = {
     }
 
     if (a.type === "toggle") {
-      // Cast/retract a "this answer is wrong" vote — only in the category on
+      // Cast/retract a "this answer is wrong" vote - only in the category on
       // screen, only on an answer that has content, and never on your own.
       if (state.stage !== "review" || a.category !== state.reviewIndex) return false;
       if (a.playerId === playerId) return false;
@@ -233,7 +233,7 @@ export const petitBac: GameEngine<PBState> = {
     if (a.type === "next") {
       if (!ctx.isHost) return false;
       if (state.stage === "review") {
-        // Host may skip ahead — step to the next category (fresh timer) or tally.
+        // Host may skip ahead - step to the next category (fresh timer) or tally.
         if (state.reviewIndex < state.categories.length - 1) {
           state.reviewIndex += 1;
           state.deadline = ctx.now + REVIEW_MS;
@@ -262,7 +262,7 @@ export const petitBac: GameEngine<PBState> = {
       return true;
     }
     if (state.stage === "review" && now >= state.deadline) {
-      // Time's up on this category — strike the voted-out answers and move on.
+      // Time's up on this category - strike the voted-out answers and move on.
       if (state.reviewIndex < state.categories.length - 1) {
         state.reviewIndex += 1;
         state.deadline = now + REVIEW_MS;

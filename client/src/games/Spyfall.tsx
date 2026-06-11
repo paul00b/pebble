@@ -147,7 +147,7 @@ function Round({
         })}
       </div>
 
-      {/* every possible location — the common reference & the spy's menu */}
+      {/* every possible location - the common reference & the spy's menu */}
       <GlassCard className="p-4">
         <div className="mb-2 flex items-baseline justify-between">
           <span className="text-xs uppercase tracking-[0.15em] text-faint">

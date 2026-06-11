@@ -60,7 +60,7 @@ export function BombParty({ room }: { room: RoomState }) {
     }
   }, [game.lastEvent, youId, game.prompt]);
 
-  // After a rejected word the shake wrapper remounts the input — pull focus back
+  // After a rejected word the shake wrapper remounts the input - pull focus back
   // (and select the text) so the player can immediately retype.
   useEffect(() => {
     if (reject && isMyTurn) {
@@ -177,7 +177,7 @@ export function BombParty({ room }: { room: RoomState }) {
         </div>
       </div>
 
-      {/* Last accepted word — centered so the whole room sees the catch. */}
+      {/* Last accepted word - centered so the whole room sees the catch. */}
       <LastWord game={game} players={players} clock={clock} />
 
       {/* Input / spectator */}
@@ -266,7 +266,7 @@ function SyllableWord({ word, syllable }: { word: string; syllable: string }) {
   );
 }
 
-/** Centered, prominent badge of the most recently accepted word — sits between
+/** Centered, prominent badge of the most recently accepted word - sits between
  *  the bomb and the input so spectators see exactly what the last player typed. */
 function LastWord({
   game,
@@ -333,7 +333,7 @@ function RecentChip({
 }
 
 /** The local player's bonus-alphabet progress. Letters still to use glow green
- *  (your remaining targets); letters already banked fade grey — so it reads at a
+ *  (your remaining targets); letters already banked fade grey - so it reads at a
  *  glance which ones you still need. */
 function AlphabetStrip({ used, hint }: { used: string; hint: string }) {
   const set = new Set(used);

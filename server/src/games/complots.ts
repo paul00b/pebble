@@ -1,16 +1,16 @@
-// Complots — a one-card Coup. Everyone holds a single hidden role card and two
-// coins. On your turn you take an action — and you may CLAIM any role to take
+// Complots - a one-card Coup. Everyone holds a single hidden role card and two
+// coins. On your turn you take an action - and you may CLAIM any role to take
 // its action, whether you hold it or not. Claimed actions open a short reaction
 // window where others can block (with a counter-claim) or call you a liar.
-// A challenge flips the card: the liar — or the wrongful accuser — is out.
+// A challenge flips the card: the liar - or the wrongful accuser - is out.
 // One card = one life; last player standing wins.
 //
 // Actions:
 //   income   +1 coin, unstoppable
 //   foreign  +2 coins, blockable by a Duke claim (no role claimed → no challenge)
 //   tax      +3 coins, claims Duke
-//   steal    take 2 from a target, claims Captain — the target may counter-claim Captain
-//   assassin pay 3, kill a target, claims Assassin — the target may counter-claim Contessa
+//   steal    take 2 from a target, claims Captain - the target may counter-claim Captain
+//   assassin pay 3, kill a target, claims Assassin - the target may counter-claim Contessa
 //   coup     pay 7, kill a target, unstoppable. At 10+ coins, coup is mandatory.
 //
 // Phase machine: action → (react → blockReact?) → resolve(pause) → next turn.
@@ -191,7 +191,7 @@ function resolveChallenge(s: CState, challengerId: string, now: number) {
 
   if (truthful) {
     eliminate(s, challengerId);
-    swapCard(s, challengedId); // proved it — trade the exposed card for a new one
+    swapCard(s, challengedId); // proved it - trade the exposed card for a new one
   } else {
     eliminate(s, challengedId);
   }
@@ -246,7 +246,7 @@ function windowDone(s: CState, now: number) {
     applyAction(s, now);
     return;
   }
-  // blockReact: nobody dared challenge the block — the action is canceled.
+  // blockReact: nobody dared challenge the block - the action is canceled.
   const p = s.pending!;
   s.lastEvent = {
     type: "blocked",
@@ -400,7 +400,7 @@ export const complots: GameEngine<CState> = {
 
     const p = state.pending;
     if (p && (p.actorId === pid || p.targetId === pid || p.blockerId === pid)) {
-      // A principal walked out mid-stand-off — drop the action and move on.
+      // A principal walked out mid-stand-off - drop the action and move on.
       endTurn(state);
       return true;
     }
@@ -409,7 +409,7 @@ export const complots: GameEngine<CState> = {
       return true;
     }
     if (state.phase === "react" || state.phase === "blockReact") {
-      // One fewer reactor — the window may now be unanimous.
+      // One fewer reactor - the window may now be unanimous.
       checkAllPassed(state, now);
     }
     const living = aliveIds(state);

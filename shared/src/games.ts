@@ -2,6 +2,8 @@
 // The server owns the full authoritative state; these are the trimmed views it
 // broadcasts. Clients render exactly what's here and send back GameActions.
 
+import type { ChateauDeck } from "./chateauCards";
+
 export type Language = "fr" | "en";
 
 /* ── Bomb Party ──────────────────────────────────────────────────────────── */
@@ -29,7 +31,7 @@ export interface BombPartyView {
   maxLives: number;
   /** Bonus-alphabet letters each player has banked so far (normalized a–z). */
   alphabet: Record<string, string>;
-  /** Each player's most recently accepted word + the syllable it matched —
+  /** Each player's most recently accepted word + the syllable it matched -
    *  floated above their avatar for a moment. */
   recent: Record<string, { word: string; syllable: string; at: number }>;
   /** Last thing that happened, for feedback + animation cues. */
@@ -111,7 +113,7 @@ export interface PetitBacView {
 }
 
 export type PetitBacAction =
-  /** Lock in answers (Stop / everyone-done) — also marks the player finished. */
+  /** Lock in answers (Stop / everyone-done) - also marks the player finished. */
   | { type: "submit"; answers: string[] }
   /** Live sync of in-progress answers (so partials are saved if someone Stops). */
   | { type: "draft"; answers: string[] }
@@ -156,7 +158,7 @@ export interface SixQuiPrendView {
   turn: number;
   totalTurns: number;
   players: SixPlayerPublic[];
-  /** The viewer's own hand (sorted) — personalized per player. */
+  /** The viewer's own hand (sorted) - personalized per player. */
   hand: number[];
   /** Whether the viewer has locked a card this turn. */
   youChose: boolean;
@@ -166,7 +168,7 @@ export interface SixQuiPrendView {
   pendingPlayerId?: string | null;
   /** Summary of the most recently resolved turn. */
   lastTurn?: SixTurnEntry[];
-  /** Snapshot of the rows at the START of the last resolution — lets the client
+  /** Snapshot of the rows at the START of the last resolution - lets the client
    *  forward-replay each placement in `lastTurn` as an animation (scoops destroy
    *  the pre-scoop row content, so it can't be reconstructed from `rows` alone). */
   lastStartRows?: number[][];
@@ -199,7 +201,7 @@ export interface CodenamesView {
   words: string[];
   /** Revealed color per cell, or null if still face-down. */
   revealed: (CodenamesCardColor | null)[];
-  /** Full key — populated only for spymasters (else all null). Personalized. */
+  /** Full key - populated only for spymasters (else all null). Personalized. */
   key: (CodenamesCardColor | null)[];
   members: CodenamesMember[];
   turnTeam: CodenamesTeam;
@@ -302,12 +304,12 @@ export interface GarticView {
   totalRounds: number;
   /** Deadline (epoch ms) for the current timed phase (choosing or drawing). */
   deadline: number;
-  /** Full length (ms) of the current timed phase — for animating the timer. */
+  /** Full length (ms) of the current timed phase - for animating the timer. */
   duration: number;
   /** Full word for the drawer & during reveal; otherwise a masked pattern. */
   word: string;
   wordMasked: boolean;
-  /** The drawer's two word options — populated only for the drawer while choosing. */
+  /** The drawer's two word options - populated only for the drawer while choosing. */
   choices: GarticChoice[];
   players: GarticPlayerScore[];
   messages: GarticMessage[];
@@ -350,11 +352,11 @@ export interface Devine9View {
   /** 1-based current turn / total turns to play. */
   turn: number;
   totalTurns: number;
-  /** The theme prompt — shown to the checker team (play) and everyone (reveal). */
+  /** The theme prompt - shown to the checker team (play) and everyone (reveal). */
   prompt: string | null;
-  /** The 9 answers — only revealed to the checker (play) or everyone (reveal). */
+  /** The 9 answers - only revealed to the checker (play) or everyone (reveal). */
   answers: string[] | null;
-  /** The bomb word — same visibility as `answers`. */
+  /** The bomb word - same visibility as `answers`. */
   bomb: string | null;
   /** Which of the 9 answers have been ticked (aligned to `answers`). */
   found: boolean[];
@@ -389,13 +391,13 @@ export type Devine9Action =
 export type SpyfallPhase = "playing" | "voting" | "spyguess" | "over";
 
 /** How the round ended:
- *  guess      — the spy guessed the location mid-round (spy wins)
- *  wrongGuess — the spy guessed wrong (crew wins)
- *  innocent   — the vote accused an innocent (spy wins)
- *  escaped    — the vote was inconclusive / tied (spy wins)
- *  caught     — the spy was voted out and missed the steal guess (crew wins)
- *  steal      — the spy was voted out but named the location (spy wins)
- *  left       — the spy left the game (crew wins) */
+ *  guess      - the spy guessed the location mid-round (spy wins)
+ *  wrongGuess - the spy guessed wrong (crew wins)
+ *  innocent   - the vote accused an innocent (spy wins)
+ *  escaped    - the vote was inconclusive / tied (spy wins)
+ *  caught     - the spy was voted out and missed the steal guess (crew wins)
+ *  steal      - the spy was voted out but named the location (spy wins)
+ *  left       - the spy left the game (crew wins) */
 export type SpyfallReason =
   | "guess"
   | "wrongGuess"
@@ -414,9 +416,9 @@ export interface SpyfallView {
   askerId: string;
   /** Deadline (epoch ms) of the current timed phase. */
   deadline: number;
-  /** Full length (ms) of the current timed phase — for animating the timer. */
+  /** Full length (ms) of the current timed phase - for animating the timer. */
   duration: number;
-  /** Every possible location — common knowledge, the spy's guess menu. */
+  /** Every possible location - common knowledge, the spy's guess menu. */
   locations: string[];
   youAreSpy: boolean;
   /** Your secret card. Null for the spy until the reveal. */
@@ -463,7 +465,7 @@ export interface ComplotsPlayerPublic {
   revealed: ComplotsRole | null;
 }
 
-/** The declared action awaiting reactions — claims are public, cards are not. */
+/** The declared action awaiting reactions - claims are public, cards are not. */
 export interface ComplotsPending {
   act: ComplotsActKind;
   actorId: string;
@@ -475,7 +477,7 @@ export interface ComplotsPending {
   blockRole: ComplotsRole | null;
 }
 
-/** What just resolved — drives the dramatic splash + toasts client-side. */
+/** What just resolved - drives the dramatic splash + toasts client-side. */
 export interface ComplotsEvent {
   type: "income" | "foreign" | "tax" | "steal" | "coup" | "assassinated" | "blocked" | "challenge";
   actorId: string;
@@ -528,6 +530,69 @@ export type ComplotsAction =
   | { type: "block" }
   | { type: "challenge" };
 
+/* ── Château Combo ───────────────────────────────────────────────────────── */
+
+/** One slot of a player's 3×3 grid. Face-down cards have no identity. */
+export interface ChateauCell {
+  cardId: string | null;
+  faceDown: boolean;
+  /** Gold stored on this card's purse. */
+  purse: number;
+}
+
+export interface ChateauPlayerPublic {
+  id: string;
+  gold: number;
+  keys: number;
+  /** Discount banners collected ([REM -1] effects). */
+  banners: number;
+  /** 9 slots, row-major. */
+  grid: (ChateauCell | null)[];
+  placed: number;
+}
+
+export interface ChateauPlayerScore {
+  /** Points per occupied cell (aligned to the grid, null for empty cells). */
+  cells: (number | null)[];
+  cardPts: number;
+  keyPts: number;
+  total: number;
+}
+
+export interface ChateauView {
+  kind: "chateau";
+  phase: "playing" | "over";
+  players: ChateauPlayerPublic[];
+  currentId: string;
+  /** Which market row the Messenger sits on (the row you may buy from). */
+  messenger: ChateauDeck;
+  /** Card ids on display, 3 per deck (null = exhausted slot). */
+  market: Record<ChateauDeck, (string | null)[]>;
+  deckCounts: Record<ChateauDeck, number>;
+  /** What the last purchase did, for toasts. */
+  lastEvent: {
+    playerId: string;
+    cardId: string | null;
+    cell: number;
+    gold: number;
+    keys: number;
+    at: number;
+  } | null;
+  /** Populated once the game is over. */
+  scores: Record<string, ChateauPlayerScore> | null;
+  winnerId: string | null;
+  over: boolean;
+}
+
+export type ChateauAction =
+  /** Spend 1 key to move the Messenger to the other row. */
+  | { type: "messenger" }
+  /** Spend 1 key to replace the 3 cards of the active row. */
+  | { type: "refresh" }
+  /** Buy market card `index` from the active row and place it at `cell`;
+   *  `faceDown` takes it as a free resource card (+6 gold, +2 keys) instead. */
+  | { type: "buy"; index: number; cell: number; faceDown?: boolean };
+
 /* ── Unions ──────────────────────────────────────────────────────────────── */
 
 export type GameView =
@@ -539,7 +604,8 @@ export type GameView =
   | GarticView
   | Devine9View
   | SpyfallView
-  | ComplotsView;
+  | ComplotsView
+  | ChateauView;
 export type GameAction =
   | BombPartyAction
   | PetitBacAction
@@ -549,4 +615,5 @@ export type GameAction =
   | GarticAction
   | Devine9Action
   | SpyfallAction
-  | ComplotsAction;
+  | ComplotsAction
+  | ChateauAction;

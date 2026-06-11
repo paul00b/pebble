@@ -43,7 +43,7 @@ export function Codenames({ room }: { room: RoomState }) {
       ) : (
         <Board game={game} players={players} youId={youId} teamName={teamName} t={t} />
       )}
-      {/* Floating waiting-room whiteboard — the team that isn't playing can doodle. */}
+      {/* Floating waiting-room whiteboard - the team that isn't playing can doodle. */}
       <WhiteboardDock game={game} teamName={teamName} t={t} />
     </>
   );
@@ -52,7 +52,7 @@ export function Codenames({ room }: { room: RoomState }) {
 /* ── Floating waiting-room whiteboard ────────────────────────────────────────
  * A collapsible drawing surface (same tools as Gartic) for whoever is waiting.
  * Only the team that isn't taking its turn can draw; everyone sees the strokes,
- * which persist across turns. Purely a way to pass the time — no game rules. */
+ * which persist across turns. Purely a way to pass the time - no game rules. */
 function WhiteboardDock({
   game,
   teamName,
@@ -183,7 +183,7 @@ function Setup({
                   </span>
                 </div>
               ))}
-              {roster(team).length === 0 && <div className="text-xs text-faint">—</div>}
+              {roster(team).length === 0 && <div className="text-xs text-faint">-</div>}
             </div>
           </GlassCard>
         ))}
@@ -191,7 +191,7 @@ function Setup({
 
       {/* my role toggle */}
       <div className="flex items-center justify-center gap-2">
-        <span className="text-sm text-faint">{me?.team ? teamName(me.team) : "—"}:</span>
+        <span className="text-sm text-faint">{me?.team ? teamName(me.team) : "-"}:</span>
         <Button
           variant={me?.role === "spymaster" ? "primary" : "ghost"}
           className="px-4 py-2 text-sm"
@@ -256,7 +256,7 @@ function Board({
 
   return (
     <div className="flex flex-1 flex-col gap-3 pb-6">
-      {/* your team & role — always visible */}
+      {/* your team & role - always visible */}
       {youTeam && (
         <div
           className="flex items-center justify-center gap-2 rounded-xl py-2 font-display text-sm font-semibold"
@@ -443,7 +443,7 @@ function Results({
         className="rounded-2xl py-4 font-display text-2xl font-semibold"
         style={{ background: game.winner ? `${TEAM_HEX[game.winner]}22` : undefined, color: game.winner ? TEAM_HEX[game.winner] : "#fff" }}
       >
-        {game.winner ? t("cn.teamWins", { team: teamName(game.winner) }) : "—"}
+        {game.winner ? t("cn.teamWins", { team: teamName(game.winner) }) : "-"}
       </div>
       {isHost ? (
         <div className="mt-3 flex flex-col gap-2">

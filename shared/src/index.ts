@@ -46,6 +46,19 @@ export type {
   AllSettings,
 } from "./settings";
 export { bullHeads } from "./games";
+export {
+  CHATEAU_CARDS,
+  CHATEAU_FACEDOWN,
+  CHATEAU_START,
+  chateauCardById,
+} from "./chateauCards";
+export type {
+  ChateauShield,
+  ChateauDeck,
+  ChateauFx,
+  ChateauScore,
+  ChateauCard,
+} from "./chateauCards";
 export type {
   Language,
   BombPartyView,
@@ -92,6 +105,11 @@ export type {
   ComplotsEvent,
   ComplotsView,
   ComplotsAction,
+  ChateauCell,
+  ChateauPlayerPublic,
+  ChateauPlayerScore,
+  ChateauView,
+  ChateauAction,
   DrawOp,
   GameView,
   GameAction,

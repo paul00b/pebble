@@ -1,7 +1,7 @@
 # 🪨 Pebble
 
 A free, beautiful website to play party minigames online with friends. Spin up a
-room, share the 4-letter code, and drop straight into a game together — no app,
+room, share the 4-letter code, and drop straight into a game together - no app,
 no signup.
 
 > Current build: design system, landing page, a fully live multiplayer lobby,
@@ -10,9 +10,9 @@ no signup.
 
 ## Stack
 
-- **Client** — React + TypeScript + Vite, Tailwind v4, Framer Motion, Zustand
-- **Server** — Node + Socket.IO, authoritative in-memory rooms
-- **Shared** — one TypeScript package of types + the socket protocol, imported by
+- **Client** - React + TypeScript + Vite, Tailwind v4, Framer Motion, Zustand
+- **Server** - Node + Socket.IO, authoritative in-memory rooms
+- **Shared** - one TypeScript package of types + the socket protocol, imported by
   both sides so the wire format can never drift
 
 ```
@@ -60,12 +60,12 @@ npm run dev:client   # Vite dev server on :5173
 - Live player list, presence, and in-room chat
 - Host controls: pick the game, start, kick
 - Automatic reconnection (refresh keeps your seat) + host migration
-- **Bomb Party** — type a real word containing the syllable before the fuse
+- **Bomb Party** - type a real word containing the syllable before the fuse
   blows; persistent bomb, lives, live typing shown to spectators, FR/EN
   dictionaries (~275k EN / ~323k FR words, accent-insensitive)
-- **Petit Bac** — a letter + categories, race to fill them in, "Stop!" to end
+- **Petit Bac** - a letter + categories, race to fill them in, "Stop!" to end
   the round, automatic scoring (unique = 2, shared = 1), multi-round scoreboard
-- **6 Qui Prend** (6 nimmt!) — secretly pick a card each turn; lay them in four
+- **6 Qui Prend** (6 nimmt!) - secretly pick a card each turn; lay them in four
   rows; take the 6th and you scoop the bulls. Language-free; private hands
 - **Bilingual UI** (English / French) with an in-app toggle, plus a per-room
   *game-content* language for Bomb Party's dictionary and Petit Bac's categories
@@ -83,5 +83,5 @@ npm run test:games    # live: full Bomb Party + Petit Bac rounds
 
 ## Next
 
-More games build on the `GameEngine` abstraction (`plan.md §6`) — each is one
+More games build on the `GameEngine` abstraction (`plan.md §6`) - each is one
 server engine + one client view. Deployment to your VPS is `plan.md §9`.

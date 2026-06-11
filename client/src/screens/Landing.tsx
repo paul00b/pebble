@@ -125,7 +125,7 @@ export function Landing({
                 </span>
               </GlassCard>
             ))}
-            {/* Solo physics playground — opens locally, no room needed. */}
+            {/* Solo physics playground - opens locally, no room needed. */}
             <GlassCard
               role="button"
               tabIndex={0}

@@ -1,6 +1,6 @@
-// Bomb Party — the live-turn game. A bomb passes around the circle; the holder
+// Bomb Party - the live-turn game. A bomb passes around the circle; the holder
 // must type a real word containing the given syllable before the fuse runs out.
-// Every player change resets the fuse to a fresh `minTurnMs … 30s` window — so
+// Every player change resets the fuse to a fresh `minTurnMs … 30s` window - so
 // each holder gets a fair, unpredictable amount of time. A successful word also
 // rolls a brand-new syllable; the syllable only persists when a player explodes
 // (so whoever inherits the bomb after a death faces the same tricky syllable).
@@ -168,7 +168,7 @@ export const bombParty: GameEngine<BombState> = {
       return true;
     }
 
-    // The bomb explodes but the syllable stays — whoever inherits it faces the
+    // The bomb explodes but the syllable stays - whoever inherits it faces the
     // same tricky prompt that just killed someone, only the fuse is fresh.
     state.current = nextId;
     state.round += 1;

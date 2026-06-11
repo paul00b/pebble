@@ -5,7 +5,7 @@ services:
     container_name: pebble
     restart: unless-stopped
     ports:
-      # host:container — Cloudflare points at the host side (3001).
+      # host:container - Cloudflare points at the host side (3001).
       - "3001:3001"
     environment:
       - PORT=3001

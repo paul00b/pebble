@@ -1,4 +1,4 @@
-# Minigames Platform — Project Plan
+# Minigames Platform - Project Plan
 
 > A free, beautiful website to play party minigames online with friends. Share a room ID, hop in, play. No signups, no friction, gorgeous Apple-grade UI.
 
@@ -36,7 +36,7 @@ Pick a direction; we can refine. (I'd flag the top 3.)
 
 | Name | Vibe | Notes |
 |---|---|---|
-| **Salon** ⭐ | Chic French "living room" — where friends gather to play | Elegant, fits party-game-night feel, .games/.gg available-ish |
+| **Salon** ⭐ | Chic French "living room" - where friends gather to play | Elegant, fits party-game-night feel, .games/.gg available-ish |
 | **Frolic** ⭐ | Playful, light, English | Fun, ownable, easy to say |
 | **Pebble** ⭐ | Soft, friendly, glassy | Pairs great with the frosted-glass aesthetic |
 | **Knack** | Quick, smart, snappy | Short, brandable |
@@ -49,7 +49,7 @@ Pick a direction; we can refine. (I'd flag the top 3.)
 
 ---
 
-## 4. Design language — "ultra high-end, Apple-like, glassy"
+## 4. Design language - "ultra high-end, Apple-like, glassy"
 
 The design system is built **once** and every game inherits it. This is what creates the cohesive "wow."
 
@@ -61,12 +61,12 @@ The design system is built **once** and every game inherits it. This is what cre
 - **Dark-first**, with an equally premium light mode. System-preference aware.
 
 ### Typography
-- **Display/headings:** a characterful but clean face — candidates: *Clash Display*, *General Sans*, *Satoshi* (all have free weights). Big, tight tracking.
-- **UI/body:** *Inter* or *Geist* — neutral, legible at small sizes on mobile.
+- **Display/headings:** a characterful but clean face - candidates: *Clash Display*, *General Sans*, *Satoshi* (all have free weights). Big, tight tracking.
+- **UI/body:** *Inter* or *Geist* - neutral, legible at small sizes on mobile.
 - Fluid type scale (clamp-based) so it breathes on desktop and stays readable on phones.
 
 ### Design tokens (single source of truth)
-A `tokens` file defines: color palette (incl. per-game accent), blur levels, shadow ladder, radii, spacing scale, motion durations/easings, z-index ladder. Everything references tokens — no magic numbers.
+A `tokens` file defines: color palette (incl. per-game accent), blur levels, shadow ladder, radii, spacing scale, motion durations/easings, z-index ladder. Everything references tokens - no magic numbers.
 
 ### Reusable UI kit (built in Phase 1, used by all games)
 `GlassCard`, `Button` (primary/ghost/danger), `Avatar`, `PlayerList`, `Modal/Sheet` (bottom-sheet on mobile), `Toast`, `Timer ring`, `Input`, `RoomCodePill` (tap-to-copy), `Confetti`, `LobbyShell`, `GameShell` (header + players + stage), `ConnectionBadge` (live/reconnecting).
@@ -84,17 +84,17 @@ A `tokens` file defines: color palette (incl. per-game accent), blur levels, sha
 Chosen for: smooth UI, one language end-to-end, great DX, free-tier/VPS friendly.
 
 ### Frontend
-- **React + TypeScript + Vite** — fast, huge ecosystem, easy code-splitting per game.
-- **Tailwind CSS** + a small custom layer for the glass tokens — rapid, consistent styling.
-- **Framer Motion** — spring animations, shared-element transitions, the "wow" motion.
-- **Zustand** — tiny, simple client state (room state, my player, UI state).
-- **PWA** (installable, offline shell) — feels like a native app, optional.
+- **React + TypeScript + Vite** - fast, huge ecosystem, easy code-splitting per game.
+- **Tailwind CSS** + a small custom layer for the glass tokens - rapid, consistent styling.
+- **Framer Motion** - spring animations, shared-element transitions, the "wow" motion.
+- **Zustand** - tiny, simple client state (room state, my player, UI state).
+- **PWA** (installable, offline shell) - feels like a native app, optional.
 
 ### Backend (authoritative game server)
-- **Node + TypeScript**, **Fastify** (HTTP) + **`ws`** (raw WebSockets) — lean and fast.
+- **Node + TypeScript**, **Fastify** (HTTP) + **`ws`** (raw WebSockets) - lean and fast.
   - Alt considered: Socket.IO (nicer reconnection/rooms out of the box, slightly heavier). We'll likely **start with Socket.IO** for its built-in reconnection + room semantics, which buys us reliability cheaply, then optimize if needed.
-- **In-memory room store** (a `Map` of rooms) — authoritative game state lives here. No DB needed for MVP.
-- **Shared types package** — game state & message contracts defined once, imported by client and server (monorepo). This is the single biggest reliability win: client and server can't disagree on the protocol.
+- **In-memory room store** (a `Map` of rooms) - authoritative game state lives here. No DB needed for MVP.
+- **Shared types package** - game state & message contracts defined once, imported by client and server (monorepo). This is the single biggest reliability win: client and server can't disagree on the protocol.
 
 ### Why this beats serverless for us
 You have a VPS → an always-on Node process holding rooms in memory is the simplest correct design: no cold starts, no per-message billing, trivial to reason about, lowest latency. (Serverless realtime would force us into an external state store and add cost/complexity for zero benefit at our scale.)
@@ -117,12 +117,12 @@ salon/
 ## 6. Multiplayer architecture
 
 ### Model: server-authoritative
-The server is the **single source of truth** for every room's game state. Clients send *intents* ("submit word", "pass turn"); the server validates, mutates state, and **broadcasts the new state** (or a delta) to everyone in the room. Clients render what the server says. This prevents cheating and desync — critical for "super fluid" with no glitches.
+The server is the **single source of truth** for every room's game state. Clients send *intents* ("submit word", "pass turn"); the server validates, mutates state, and **broadcasts the new state** (or a delta) to everyone in the room. Clients render what the server says. This prevents cheating and desync - critical for "super fluid" with no glitches.
 
 ### Rooms
 - `createRoom()` → generates a **short, human-friendly ID** (e.g. `BRAVO-7` or 4 uppercase letters, avoiding ambiguous chars/profanity). That's the share link: `salon.app/r/BRAVO7`.
 - Room holds: players, host, chosen game, settings, phase (`lobby` → `playing` → `results`), and game-specific state.
-- Max players is **per-game** (Bomb Party ~16, Petit Bac ~12 — tunable).
+- Max players is **per-game** (Bomb Party ~16, Petit Bac ~12 - tunable).
 
 ### Player lifecycle & resilience (the "never breaks" part)
 - Each player gets a **session token** (stored in `localStorage`) so a refresh or dropped connection **rejoins the same seat** with state intact.
@@ -134,7 +134,7 @@ The server is the **single source of truth** for every room's game state. Client
 ### Message protocol (typed, in `shared`)
 - Client→Server: `JOIN`, `LEAVE`, `CHOOSE_GAME`, `UPDATE_SETTINGS`, `START`, `GAME_ACTION` (game-specific payload), `CHAT`.
 - Server→Client: `ROOM_STATE` (full snapshot), `STATE_PATCH` (delta), `ERROR`, `TOAST`, `PLAYER_JOINED/LEFT`, `GAME_EVENT` (e.g. "bomb exploded" for animation/sound cues).
-- All payloads validated with **zod** on the server — malformed/abusive messages are rejected.
+- All payloads validated with **zod** on the server - malformed/abusive messages are rejected.
 
 ### Game engine abstraction (so adding games is cheap)
 Every game implements a small interface:
@@ -175,33 +175,33 @@ Together these two cover **both** fundamental realtime patterns, so the engine i
 
 > Each phase ends with something you can actually open in a browser and try.
 
-### Phase 0 — Foundations (scaffold)
+### Phase 0 - Foundations (scaffold)
 - Monorepo, TypeScript, Vite client, Node server, shared package, lint/format.
 - "Hello round-trip": client connects via WebSocket, server echoes. Confirms the pipe works end-to-end.
 
-### Phase 1 — Design system + lobby (the "wow" shell)
+### Phase 1 - Design system + lobby (the "wow" shell)
 - Design tokens, glass UI kit, animated aurora background, fonts.
 - **Landing page** with the wow effect + "Create room" / "Join with code".
 - **Lobby:** create room → get shareable ID, join via ID, guest nickname + avatar picker, live player list, host controls, game picker, chat. Reconnection + session tokens working.
-- *Deliverable: you can make a room, share the code, and friends appear in the lobby in real time — no game yet.*
+- *Deliverable: you can make a room, share the code, and friends appear in the lobby in real time - no game yet.*
 
-### Phase 2 — Game engine + Bomb Party
+### Phase 2 - Game engine + Bomb Party
 - Implement `GameEngine` abstraction and server routing.
 - Build Bomb Party engine + React view + dictionary + SFX/animation.
 - *Deliverable: first fully playable game online with friends.*
 
-### Phase 3 — Petit Bac
+### Phase 3 - Petit Bac
 - Multi-phase round state machine, simultaneous input, voting/scoring, scoreboard.
 - *Deliverable: second game; engine proven for both patterns.*
 
-### Phase 4 — Polish & deploy to your VPS
+### Phase 4 - Polish & deploy to your VPS
 - End-to-end reconnection/host-migration hardening, error/empty/disconnect states, sound toggle, reduced-motion, PWA, mobile QA on real devices.
 - Deploy to VPS with HTTPS + a domain (§9). Friends play for real.
 
-### Phase 5 — More games (post-MVP, one at a time)
+### Phase 5 - More games (post-MVP, one at a time)
 - Codenames (teams + roles), 6 qui prend / Skyjo (hidden hands + card animations), Gartic-style draw-and-guess (canvas streaming), Codenames, Just-One, etc. Each = one engine + one view.
 
-### Phase 6 — Optional accounts & extras
+### Phase 6 - Optional accounts & extras
 - Optional login, persistent stats/history, friends, room reconnect links, spectator mode, emotes/reactions, localization toggle in UI.
 
 ---
@@ -212,7 +212,7 @@ I'll walk you through each step live, but here's the shape so you know what's co
 
 1. **Domain + DNS:** point a domain (or subdomain) at your VPS IP.
 2. **Server runtime:** install Node (via `nvm`), run the game server under **PM2** (auto-restart, survives reboots) or a `systemd` service.
-3. **Reverse proxy + HTTPS:** **Caddy** (recommended — automatic Let's Encrypt TLS, dead simple config) or Nginx. It serves the static React build and proxies `/ws` to the Node server, including the WebSocket upgrade headers.
+3. **Reverse proxy + HTTPS:** **Caddy** (recommended - automatic Let's Encrypt TLS, dead simple config) or Nginx. It serves the static React build and proxies `/ws` to the Node server, including the WebSocket upgrade headers.
 4. **Static client:** build the React app to static files, served by Caddy/CDN.
 5. **Firewall:** open 80/443 only; keep the Node port internal.
 6. **Deploys:** a small `git pull && build && pm2 reload` script (later: a GitHub Actions deploy).
@@ -235,17 +235,17 @@ No database needed for MVP (rooms are in memory). If/when accounts arrive, add *
 
 ## 11. Open questions / things to decide as we go
 
-1. **Final name** (§3) — pick when ready; code uses `Salon` placeholder.
-2. **Primary language of the UI** — FR, EN, or bilingual toggle? (Games support both dictionaries regardless.)
-3. **Socket.IO vs raw `ws`** — I recommend starting with Socket.IO for reliability; revisit if we ever need to shave bytes.
-4. **Sound on by default?** — party games are better with sound, but autoplay policies mean we enable after first interaction.
-5. **Max players per game** — sensible defaults proposed; you can tune once we playtest.
+1. **Final name** (§3) - pick when ready; code uses `Salon` placeholder.
+2. **Primary language of the UI** - FR, EN, or bilingual toggle? (Games support both dictionaries regardless.)
+3. **Socket.IO vs raw `ws`** - I recommend starting with Socket.IO for reliability; revisit if we ever need to shave bytes.
+4. **Sound on by default?** - party games are better with sound, but autoplay policies mean we enable after first interaction.
+5. **Max players per game** - sensible defaults proposed; you can tune once we playtest.
 
 ---
 
 ## 12. Immediate next step
 
-On your go, I'll start **Phase 0 + Phase 1**: scaffold the monorepo and build the design system + landing + lobby so you can create a room and watch friends join in real time. That's the fastest path to a tangible "wow" you can show people — before any game logic exists.
+On your go, I'll start **Phase 0 + Phase 1**: scaffold the monorepo and build the design system + landing + lobby so you can create a room and watch friends join in real time. That's the fastest path to a tangible "wow" you can show people - before any game logic exists.
 
 ---
 
@@ -268,7 +268,7 @@ On your go, I'll start **Phase 0 + Phase 1**: scaffold the monorepo and build th
 | Skyjo | `server/src/games/skyjo.ts` | `client/src/games/Skyjo.tsx` |
 | **Gartic** ✅ *(just added)* | `server/src/games/gartic.ts` + `garticWords.ts` | `client/src/games/Gartic.tsx` |
 
-### Gartic — what was built this session (COMPLETE)
+### Gartic - what was built this session (COMPLETE)
 Draw-&-guess game. One player draws a secret word on a canvas; everyone else races to guess it in a chat-style feed. Faster guesses score more; the drawer earns a bonus per correct guesser. One lap = each player draws once.
 - **Server engine** (`gartic.ts`): phases `drawing → reveal → done`; per-round drawer rotation; scoring (time-weighted guess points + 20 drawer bonus); early reveal when all non-drawers guess; host-driven `next`; `onLeave` handles the drawer bailing.
 - **Drawing side-channel**: drawing strokes travel on a dedicated `draw:op` / `draw:sync` / `draw:request` Socket.IO channel (kept OUT of the heavy room snapshot). Server relays drawer ops to the room and can resync late joiners. Wired in `server/src/index.ts` + `RoomManager.drawOp/drawOps` in `server/src/rooms.ts`. Engine exposes optional `drawOps()` / `applyDrawOp()` (added to the `GameEngine` interface).
@@ -278,9 +278,9 @@ Draw-&-guess game. One player draws a secret word on a canvas; everyone else rac
 - **Tests**: `scripts/gartic-test.ts` (19 deterministic checks, all passing), wired into the `test:engine` npm script.
 
 ### Verification done
-- `npm run typecheck` — clean (server + client).
-- `npm run build` — clean (Vite production build).
-- `npm run test:engine` — all engine suites pass, incl. 19 Gartic checks.
+- `npm run typecheck` - clean (server + client).
+- `npm run build` - clean (Vite production build).
+- `npm run test:engine` - all engine suites pass, incl. 19 Gartic checks.
 - ⚠️ **Not yet done**: live multi-client playtest of Gartic over a real socket (no `scripts/gartic-socket.mjs` written). The socket-level relay was verified only by reading the wiring, not exercised end-to-end. Worth a manual `npm run dev` smoke test with two browser tabs.
 
 ### How to run
@@ -296,21 +296,37 @@ npm run test:engine
 2. Consider a `scripts/gartic-socket.mjs` e2e like the other socket tests; add it to `test:games`.
 3. Continue §8 Phase 5 (more games) or move to Phase 4 (VPS deploy) per §9.
 
-### Session 2026-06-11 — Spyfall + Complots (COMPLETE)
+### Session 2026-06-11 - Spyfall + Complots (COMPLETE)
 Two new social-deduction games, both server-authoritative with per-player hidden views (`playerView`).
 
 **Spyfall** (`spyfall`, 3–10 players, 🔎)
 - Everyone gets the location + a role except the spy. One timed questioning round (host-configurable `roundSec`, 120–600s) with a social "who's asking" cue, the full location list as common knowledge, and a tap-to-peek secret card.
 - Endgames: the spy may guess the location at any time (one shot); each player can call ONE emergency vote (timer expiry also opens the final vote); a unique plurality accuses; a caught spy gets a 40s "steal" guess. Tie → spy escapes.
-- Files: `server/src/games/spyfall.ts` + `spyfallLocations.ts` (20 FR + 20 EN locations, ≥9 roles each — follows the room's game-content language), `client/src/games/Spyfall.tsx`, `SpyfallSettings`/`SF_BOUNDS` in shared settings.
+- Files: `server/src/games/spyfall.ts` + `spyfallLocations.ts` (20 FR + 20 EN locations, ≥9 roles each - follows the room's game-content language), `client/src/games/Spyfall.tsx`, `SpyfallSettings`/`SF_BOUNDS` in shared settings.
 
-**Complots** (`complots`, 3–8 players, 🎭) — one-card Coup
+**Complots** (`complots`, 3–8 players, 🎭) - one-card Coup
 - One hidden role card (3× Duc/Assassin/Capitaine/Comtesse) + 2 coins each; one card = one life; last alive wins.
 - Actions: income +1, foreign aid +2 (Duke-blockable), tax +3 (claims Duke), steal 2 (claims Captain, target counter-claims Captain), assassinate −3 (claims Assassin, target counter-claims Contessa), coup −7 (unstoppable, mandatory at 10+).
-- 15s reaction windows (pass / block / "Menteur !") driven by the shared 200ms tick — silence is consent; challenges flip the card live (truthful claimer swaps for a fresh card) followed by a 4s resolve splash.
+- 15s reaction windows (pass / block / "Menteur !") driven by the shared 200ms tick - silence is consent; challenges flip the card live (truthful claimer swaps for a fresh card) followed by a 4s resolve splash.
 - Files: `server/src/games/complots.ts`, `client/src/games/Complots.tsx`. No host settings.
 
 **Verification**
-- `npm run typecheck` + `npm run build` — clean.
-- `npm run test:engine` — 230 checks across 8 games, incl. 30 Spyfall + 38 Complots.
-- `node scripts/new-games-smoke.mjs` (server running) — 24 live-socket checks: 3 clients, hidden views, vote→steal flow, claim→challenge→reveal flow. Wired into `test:games`.
+- `npm run typecheck` + `npm run build` - clean.
+- `npm run test:engine` - 230 checks across 8 games, incl. 30 Spyfall + 38 Complots.
+- `node scripts/new-games-smoke.mjs` (server running) - 24 live-socket checks: 3 clients, hidden views, vote→steal flow, claim→challenge→reveal flow. Wired into `test:games`.
+
+### Session 2026-06-11 (later) - Château Combo (COMPLETE)
+Card tableau-builder from the friend-provided spec PDF (`Chateau_Combo_Spec_IA_Enrichie_Cartes.pdf`): each player builds a 3×3 grid of cards bought from two shared markets (Château / Village) gated by a Messenger pawn; gold + keys economy; cards fire an immediate effect on placement and score combo formulas at the end.
+
+**`chateau`** (2–5 players, 🏰, untimed turns)
+- **Card DB** (`shared/src/chateauCards.ts`): all 77 readable cards transcribed (39 Château + 38 Village - the spec's missing Village card is intentionally not invented). Effects/scores are parsed engine data; the client *generates* card text from the parsed forms (EN+FR i18n templates), so display always matches the rules.
+- **Interpretations** of spec-flagged uncertain readings (documented in the DB header): banners unified as stacking -1 discount markers; "chez 1 voisin" auto-resolves against the best opponent; "OU N clés" choices take the better branch; "carte X" = priciest visible market card; ambiguous line/column/2×2 icons score on the row/column/square containing the card; Charpentier's unreadable effect = +2 keys.
+- **Engine** (`server/src/games/chateau.ts`): 15 gold + 2 keys start, Messenger on Village; key actions (move messenger / refresh row, 1 key each, repeatable); buy with banner discounts (floor 0) or take face-down (+6 gold +2 keys, never scores); placement adjacency (first card anywhere, then orthogonal); purse storage with caps; deck reshuffles from discards; a fully exhausted active row flips the Messenger free so nobody is stranded; end when all grids hold 9 → full scoring (card formulas + 1 pt per leftover key, ties broken by gold).
+- **One public view** - no hidden info, so no `playerView`; everyone sees all tableaus, markets and resources.
+- **Client** (`client/src/games/Chateau.tsx`): players strip (tap to inspect any tableau), two-row market with messenger highlight, card detail panel with effective cost, face-up/face-down buy toggle, glowing valid cells, per-cell score badges on the results screen.
+
+**Verification**
+- `npm run test:engine` - 42 Château checks incl. a full sweep where all 77 cards are bought, resolve their effect and score without error.
+- `node scripts/new-games-smoke.mjs` - +10 live-socket checks (market flow, messenger, face-down pickup, public tableaus, turn passing).
+- `npm run typecheck` + `npm run build` - clean.
+- ⚠️ Note: an external pass replaced em-dashes with hyphens across the repo this session and left four `",-` syntax artifacts in `shared/src/types.ts` GAMES entries - repaired here.

@@ -1,5 +1,5 @@
 // Curated location bank for Spyfall. Every player (spy included) sees the full
-// list of location names — it's the spy's guess menu and the crew's bluffing
+// list of location names - it's the spy's guess menu and the crew's bluffing
 // space. Each location carries enough roles to cover a full 10-player room
 // (roles repeat if a location ever runs short).
 

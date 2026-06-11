@@ -113,7 +113,7 @@ export function Sandbox({ onBack }: { onBack: () => void }) {
     window.addEventListener("scroll", scheduleSync, true);
     const syncTimer = window.setInterval(syncSolids, 500);
 
-    // ── Mouse drag/throw — only when actually over a shape, so the page below
+    // ── Mouse drag/throw - only when actually over a shape, so the page below
     //    stays clickable. We toggle the canvas's pointer-events on hover. ──────
     const mouse = Mouse.create(canvas);
     const mc = MouseConstraint.create(engine, {

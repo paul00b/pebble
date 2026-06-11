@@ -19,7 +19,7 @@ export interface BombPartySettings {
   syllableMaxAge: number;
   /** Lives each player starts with. */
   startLives: number;
-  /** Cap on lives — the alphabet bonus can raise a player up to here. */
+  /** Cap on lives - the alphabet bonus can raise a player up to here. */
   maxLives: number;
   /** Maximum players allowed to join while this game is selected. */
   maxPlayers: number;
@@ -67,7 +67,7 @@ export const PB_BOUNDS = {
   minWriteSec: { min: 0, max: 90 },
 } as const;
 
-/** Built-in category suggestions per language — also the fallback set when the
+/** Built-in category suggestions per language - also the fallback set when the
  *  host hasn't picked a valid custom list. */
 export const PB_DEFAULT_CATEGORIES: Record<Language, string[]> = {
   fr: ["Pays", "Ville", "Animal", "Prénom", "Métier", "Fruit ou légume"],
@@ -110,6 +110,7 @@ export interface AllSettings {
   devine9: Devine9Settings;
   spyfall: SpyfallSettings;
   complots: Record<string, never>;
+  chateau: Record<string, never>;
 }
 
 export const DEFAULT_SETTINGS: AllSettings = {
@@ -129,6 +130,7 @@ export const DEFAULT_SETTINGS: AllSettings = {
   devine9: { turnSec: 60, roundsPerTeam: 3 },
   spyfall: { roundSec: 360 },
   complots: {},
+  chateau: {},
 };
 
 /** Editable ranges, shared by the client UI and server validation. */
@@ -188,8 +190,8 @@ export function sanitizeCodenames(patch: Partial<CodenamesSettings>): CodenamesS
 
 /** Clean an (untrusted) Petit Bac settings patch: trim/collapse/dedupe the
  *  category list (case-insensitively) and clamp the minimum write time. A list
- *  shorter than PB_CATEGORIES.min is kept as-is here — the engine falls back to
- *  the language defaults — so the host can clear it to "use defaults". */
+ *  shorter than PB_CATEGORIES.min is kept as-is here - the engine falls back to
+ *  the language defaults - so the host can clear it to "use defaults". */
 export function sanitizePetitBac(patch: Partial<PetitBacSettings>): PetitBacSettings {
   const d = DEFAULT_SETTINGS.petitbac;
   const minWriteSec = clampInt(patch.minWriteSec, PB_BOUNDS.minWriteSec.min, PB_BOUNDS.minWriteSec.max, d.minWriteSec);

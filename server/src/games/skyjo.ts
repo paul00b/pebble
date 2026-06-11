@@ -1,4 +1,4 @@
-// Skyjo — keep your 3×4 grid as low as possible. Each turn: draw from the deck
+// Skyjo - keep your 3×4 grid as low as possible. Each turn: draw from the deck
 // (then keep-and-replace, or discard-and-flip) or take the discard (and replace).
 // Three equal face-up cards in a column clear it. When someone reveals their
 // whole grid the round ends after everyone's last turn; lowest total wins, and

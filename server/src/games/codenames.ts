@@ -1,4 +1,4 @@
-// Codenames — two teams race to contact all their agents. Each team's spymaster
+// Codenames - two teams race to contact all their agents. Each team's spymaster
 // (who alone sees the key) gives a one-word clue + a number; their operatives
 // guess words on the 5×5 grid. Hit the assassin and you lose instantly.
 
@@ -35,7 +35,7 @@ interface CNState {
   remaining: { red: number; blue: number };
   winner: CodenamesTeam | null;
   endReason: "swept" | "assassin" | null;
-  /** Shared whiteboard strokes — a place for the waiting team to doodle while
+  /** Shared whiteboard strokes - a place for the waiting team to doodle while
    *  the other team plays. Purely cosmetic; never affects the game. */
   ops: DrawOp[];
 }
@@ -154,7 +154,7 @@ export const codenames: GameEngine<CNState> = {
 
       const color = state.key[a.index];
       state.revealed[a.index] = color;
-      state.votes = {}; // resolved a card — clear the slate for the next vote
+      state.votes = {}; // resolved a card - clear the slate for the next vote
 
       if (color === "assassin") {
         state.winner = other(state.turnTeam);
@@ -178,7 +178,7 @@ export const codenames: GameEngine<CNState> = {
         state.guessesLeft -= 1;
         if (state.guessesLeft <= 0) endTurn(state);
       } else {
-        // Helped the other team — turn ends immediately.
+        // Helped the other team - turn ends immediately.
         endTurn(state);
       }
       return true;

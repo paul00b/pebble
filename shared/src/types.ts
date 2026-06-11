@@ -14,7 +14,8 @@ export type GameId =
   | "gartic"
   | "devine9"
   | "spyfall"
-  | "complots";
+  | "complots"
+  | "chateau";
 
 /** High-level phase of a room. */
 export type RoomPhase = "lobby" | "playing" | "results";
@@ -102,7 +103,7 @@ export const GAMES: GameMeta[] = [
   {
     id: "sixquiprend",
     name: "6 Qui Prend",
-    tagline: "Lay cards in rows — just don't take the sixth.",
+    tagline: "Lay cards in rows - just don't take the sixth.",
     emoji: "🐂",
     minPlayers: 2,
     maxPlayers: 10,
@@ -138,7 +139,7 @@ export const GAMES: GameMeta[] = [
   {
     id: "devine9",
     name: "Devine 9",
-    tagline: "Two teams, a theme, 9 answers to shout — but not the bomb word.",
+    tagline: "Two teams, a theme, 9 answers to shout - but not the bomb word.",
     emoji: "🎯",
     minPlayers: 2,
     maxPlayers: 12,
@@ -147,7 +148,7 @@ export const GAMES: GameMeta[] = [
   {
     id: "spyfall",
     name: "Spyfall",
-    tagline: "Everyone knows the place — except the spy. Question, bluff, accuse.",
+    tagline: "Everyone knows the place - except the spy. Question, bluff, accuse.",
     emoji: "🔎",
     minPlayers: 3,
     maxPlayers: 10,
@@ -156,11 +157,20 @@ export const GAMES: GameMeta[] = [
   {
     id: "complots",
     name: "Complots",
-    tagline: "One hidden card. Claim any role you like — until someone calls liar.",
+    tagline: "One hidden card. Claim any role you like - until someone calls liar.",
     emoji: "🎭",
     minPlayers: 3,
     maxPlayers: 8,
     duration: "5–10 min",
+  },
+  {
+    id: "chateau",
+    name: "Château Combo",
+    tagline: "Build a 3×3 court of combo cards - every shield counts.",
+    emoji: "🏰",
+    minPlayers: 2,
+    maxPlayers: 5,
+    duration: "15–25 min",
   },
 ];
 

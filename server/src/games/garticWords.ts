@@ -93,7 +93,7 @@ export function randomWord(language: Language): string {
   return pick([...bank.easy, ...bank.medium]);
 }
 
-/** Two distinct options for the drawer to pick between — always with at least one
+/** Two distinct options for the drawer to pick between - always with at least one
  *  easy word, the other drawn from the medium/hard pools to add spice & expressions. */
 export function wordChoices(language: Language): GarticChoice[] {
   const bank = BANKS[language];

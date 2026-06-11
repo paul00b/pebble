@@ -87,7 +87,7 @@ const fresh = (): any =>
   complots.action(s, "a", { type: "pass" }, P);
   complots.action(s, "c", { type: "pass" }, P);
   complots.action(s, "d", { type: "pass" }, P);
-  ok(s.phase === "resolve" && s.lastEvent.type === "blocked", "cp: nobody dares — the block stands");
+  ok(s.phase === "resolve" && s.lastEvent.type === "blocked", "cp: nobody dares - the block stands");
   ok(s.players.a.coins === 2 && s.players.b.coins === 2, "cp: a blocked steal moves nothing");
 }
 

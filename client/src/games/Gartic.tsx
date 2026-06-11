@@ -153,7 +153,7 @@ export function Gartic({ room }: { room: RoomState }) {
                         p.id === youId ? "text-accent" : "text-cloud"
                       }`}
                     >
-                      {info?.name ?? "—"}
+                      {info?.name ?? "-"}
                     </span>
                     {isDrawer && <span title="drawing">✏️</span>}
                     {p.guessed && !isDrawer && <span>✅</span>}
@@ -326,7 +326,7 @@ function GarticResults({
                     r.id === youId ? "text-accent" : "text-cloud"
                   }`}
                 >
-                  {p?.name ?? "—"}
+                  {p?.name ?? "-"}
                 </span>
                 <span className="font-display text-lg tabular-nums text-cloud">{r.score}</span>
               </li>

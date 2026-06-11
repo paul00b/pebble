@@ -6,7 +6,7 @@ import { useStore } from "@/lib/store";
 
 const COLORS = ["#6ee7d6", "#7dd3fc", "#a78bfa", "#f4a8c7", "#fbbf72", "#86efac"];
 
-/** A radial confetti pop centered on a point — used for click/tap bursts.
+/** A radial confetti pop centered on a point - used for click/tap bursts.
  *  Pass `color` to tint roughly half the pieces with that player's color. */
 export function ConfettiBurst({
   x,
@@ -66,7 +66,7 @@ export function ConfettiBurst({
 
 /** Drop onto any game's results screen: plays the victory fanfare once, and lets
  *  everyone fling confetti by clicking/tapping anywhere on the screen. Bursts are
- *  synchronized — a tap lands in the same relative spot on every player's screen.
+ *  synchronized - a tap lands in the same relative spot on every player's screen.
  *  `auto` toggles the initial top-down confetti rain (e.g. only for the winner). */
 export function Celebration({
   auto = true,
@@ -98,7 +98,7 @@ export function Celebration({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Anyone clicking/tapping spawns a confetti pop — shown here immediately and
+  // Anyone clicking/tapping spawns a confetti pop - shown here immediately and
   // relayed to everyone else at the same relative spot (normalized 0–1 coords).
   useEffect(() => {
     let last = 0;

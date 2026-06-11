@@ -1,9 +1,9 @@
 // Curated theme bank for Devine 9. Each theme has a prompt, a large pool of
 // correct answers (≥ 9 so a fresh subset is drawn each turn for replayability),
-// and several "bombs" — tempting but wrong answers the guessing team must avoid.
+// and several "bombs" - tempting but wrong answers the guessing team must avoid.
 // One bomb is drawn per turn so a theme rarely repeats the same trap.
 //
-// BOMB DESIGN: a good bomb is a *near miss* — something the guessing team is
+// BOMB DESIGN: a good bomb is a *near miss* - something the guessing team is
 // genuinely tempted to shout because it sits right on the boundary of the
 // category (a fruit-like vegetable, a non-Olympic sport, a DC hero in a Marvel
 // list). Bombs that are obviously off-theme are never said, so they carry no

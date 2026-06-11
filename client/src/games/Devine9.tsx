@@ -74,7 +74,7 @@ function Setup({
                   <span className="text-cloud">{players[m.id]?.name}</span>
                 </div>
               ))}
-              {roster(team).length === 0 && <div className="text-xs text-faint">—</div>}
+              {roster(team).length === 0 && <div className="text-xs text-faint">-</div>}
             </div>
           </GlassCard>
         ))}
