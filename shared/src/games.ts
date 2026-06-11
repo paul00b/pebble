@@ -593,6 +593,102 @@ export type ChateauAction =
    *  `faceDown` takes it as a free resource card (+6 gold, +2 keys) instead. */
   | { type: "buy"; index: number; cell: number; faceDown?: boolean };
 
+/* ── Love Letter (2019 edition, 21 cards, 2-6 players) ──────────────────── */
+
+export type LoveLetterCard =
+  | "spy"        // Espionne 0
+  | "guard"      // Garde 1
+  | "priest"     // Prêtre 2
+  | "baron"      // Baron 3
+  | "handmaid"   // Servante 4
+  | "prince"     // Prince 5
+  | "chancellor" // Chancelier 6
+  | "king"       // Roi 7
+  | "countess"   // Comtesse 8
+  | "princess";  // Princesse 9
+
+export const LL_VALUES: Record<LoveLetterCard, number> = {
+  spy: 0, guard: 1, priest: 2, baron: 3, handmaid: 4,
+  prince: 5, chancellor: 6, king: 7, countess: 8, princess: 9,
+};
+
+/** Copies of each card in the 21-card deck. */
+export const LL_COUNTS: Record<LoveLetterCard, number> = {
+  spy: 2, guard: 6, priest: 2, baron: 2, handmaid: 2,
+  prince: 2, chancellor: 2, king: 1, countess: 1, princess: 1,
+};
+
+/** All cards by ascending value (the Guard's guess menu, minus the Guard). */
+export const LL_CARD_ORDER: LoveLetterCard[] = [
+  "spy", "guard", "priest", "baron", "handmaid",
+  "prince", "chancellor", "king", "countess", "princess",
+];
+
+/** Favor tokens needed to win the match, by player count. */
+export const LL_TOKENS_TO_WIN: Record<number, number> = { 2: 6, 3: 5, 4: 4, 5: 3, 6: 3 };
+
+export interface LoveLetterPlayerPublic {
+  id: string;
+  tokens: number;
+  /** Still in the current round. */
+  alive: boolean;
+  /** Protected by the Handmaid until their next turn. */
+  shielded: boolean;
+  handCount: number;
+  /** Face-up pile, in play order (public information). */
+  discards: LoveLetterCard[];
+}
+
+/** Public narration of the last play. */
+export interface LoveLetterEvent {
+  actor: string;
+  card: LoveLetterCard;
+  targetId?: string | null;
+  guess?: LoveLetterCard | null;
+  eliminatedId?: string | null;
+  /** Baron duel ended even. */
+  tie?: boolean;
+  /** No legal target - the card fizzled. */
+  noEffect?: boolean;
+  at: number;
+}
+
+export interface LoveLetterRoundResult {
+  winnerId: string | null;
+  reason: "lastAlive" | "highest";
+  /** Final hands of the players still in, revealed. */
+  revealed: Record<string, LoveLetterCard>;
+  /** Player who earned the Spy bonus token, if any. */
+  spyBonusId: string | null;
+}
+
+export interface LoveLetterView {
+  kind: "loveletter";
+  phase: "turn" | "chancellor" | "roundEnd" | "over";
+  players: LoveLetterPlayerPublic[];
+  currentId: string;
+  round: number;
+  tokensToWin: number;
+  deckCount: number;
+  /** 2-player setup: three cards removed face-up (public). */
+  faceUp: LoveLetterCard[];
+  /** The viewer's hand (2 cards on their turn, 3 while resolving the Chancellor). */
+  yourHand: LoveLetterCard[];
+  /** Cards the viewer has legitimately seen (Priest/Baron/King), still current. */
+  youKnow: Record<string, LoveLetterCard>;
+  lastEvent: LoveLetterEvent | null;
+  roundResult: LoveLetterRoundResult | null;
+  winnerId: string | null;
+  over: boolean;
+}
+
+export type LoveLetterAction =
+  | { type: "play"; card: LoveLetterCard; target?: string; guess?: LoveLetterCard }
+  /** Chancellor: which of the 3 cards to keep (the rest go under the deck). */
+  | { type: "keep"; card: LoveLetterCard }
+  /** Host advances to the next round after the reveal. */
+  | { type: "next" };
+
 /* ── Unions ──────────────────────────────────────────────────────────────── */
 
 export type GameView =
@@ -605,7 +701,8 @@ export type GameView =
   | Devine9View
   | SpyfallView
   | ComplotsView
-  | ChateauView;
+  | ChateauView
+  | LoveLetterView;
 export type GameAction =
   | BombPartyAction
   | PetitBacAction
@@ -616,4 +713,5 @@ export type GameAction =
   | Devine9Action
   | SpyfallAction
   | ComplotsAction
-  | ChateauAction;
+  | ChateauAction
+  | LoveLetterAction;

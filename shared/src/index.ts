@@ -45,7 +45,7 @@ export type {
   SpyfallSettings,
   AllSettings,
 } from "./settings";
-export { bullHeads } from "./games";
+export { bullHeads, LL_VALUES, LL_COUNTS, LL_CARD_ORDER, LL_TOKENS_TO_WIN } from "./games";
 export {
   CHATEAU_CARDS,
   CHATEAU_FACEDOWN,
@@ -110,6 +110,12 @@ export type {
   ChateauPlayerScore,
   ChateauView,
   ChateauAction,
+  LoveLetterCard,
+  LoveLetterPlayerPublic,
+  LoveLetterEvent,
+  LoveLetterRoundResult,
+  LoveLetterView,
+  LoveLetterAction,
   DrawOp,
   GameView,
   GameAction,

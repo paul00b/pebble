@@ -438,9 +438,14 @@ function GameRules({ room, isHost }: { room: RoomState; isHost: boolean }) {
           onChange={(patch) => updateSettings("spyfall", patch)}
         />
       ) : room.selectedGame === "complots" ? (
-        <RulesList prefix="cp" steps={["card", "claim", "liar", "block", "coins", "win"]} />
+        <RulesList
+          prefix="cp"
+          steps={["setup", "turn", "roles", "bluff", "liar", "block", "coup", "win"]}
+        />
       ) : room.selectedGame === "chateau" ? (
         <RulesList prefix="ch" steps={["goal", "market", "place", "facedown", "combo", "score"]} />
+      ) : room.selectedGame === "loveletter" ? (
+        <RulesList prefix="ll" steps={["deal", "turn", "out", "end", "spy", "tokens"]} />
       ) : room.selectedGame === "sixquiprend" ? (
         <RulesList prefix="sixqp" steps={["pick", "place", "sixth", "low", "win"]} />
       ) : room.selectedGame === "skyjo" ? (

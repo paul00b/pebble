@@ -15,7 +15,8 @@ export type GameId =
   | "devine9"
   | "spyfall"
   | "complots"
-  | "chateau";
+  | "chateau"
+  | "loveletter";
 
 /** High-level phase of a room. */
 export type RoomPhase = "lobby" | "playing" | "results";
@@ -171,6 +172,15 @@ export const GAMES: GameMeta[] = [
     minPlayers: 2,
     maxPlayers: 5,
     duration: "15–25 min",
+  },
+  {
+    id: "loveletter",
+    name: "Love Letter",
+    tagline: "One card in hand, one chance to reach the princess.",
+    emoji: "💌",
+    minPlayers: 2,
+    maxPlayers: 6,
+    duration: "10–20 min",
   },
 ];
 

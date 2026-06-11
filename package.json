@@ -14,7 +14,7 @@
     "build": "npm --workspace client run build",
     "start": "npm --workspace server run start",
     "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p client/tsconfig.json --noEmit",
-    "test:engine": "tsx scripts/engine-test.ts && tsx scripts/six-test.ts && tsx scripts/codenames-test.ts && tsx scripts/skyjo-test.ts && tsx scripts/gartic-test.ts && tsx scripts/devine9-test.ts && tsx scripts/spyfall-test.ts && tsx scripts/complots-test.ts && tsx scripts/chateau-test.ts",
+    "test:engine": "tsx scripts/engine-test.ts && tsx scripts/six-test.ts && tsx scripts/codenames-test.ts && tsx scripts/skyjo-test.ts && tsx scripts/gartic-test.ts && tsx scripts/devine9-test.ts && tsx scripts/spyfall-test.ts && tsx scripts/complots-test.ts && tsx scripts/chateau-test.ts && tsx scripts/loveletter-test.ts",
     "test:lobby": "node scripts/e2e.mjs",
     "test:games": "node scripts/games-socket.mjs && node scripts/six-socket.mjs && node scripts/new-games-smoke.mjs"
   },
