@@ -32,6 +32,29 @@ const MAX_BOARD_OPS = 8000;
 const freshSettings = (): AllSettings =>
   JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as AllSettings;
 
+/**
+ * Turn-based games whose seating *is* the turn order. For these we shuffle the
+ * players on every fresh game so hitting "rejouer" doesn't replay the exact
+ * same rotation (team-based / simultaneous games are deliberately excluded).
+ */
+const TURN_BASED_GAMES: ReadonlySet<GameId> = new Set<GameId>([
+  "bombparty",
+  "skyjo",
+  "uno",
+  "complots",
+  "loveletter",
+  "chateau",
+]);
+
+/** Fisher-Yates shuffle, in place. */
+function shuffleInPlace<T>(a: T[]): T[] {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 interface Room {
   code: string;
   phase: RoomState["phase"];
@@ -54,6 +77,8 @@ interface Room {
   /** Active game engine + its authoritative state (only while phase==="playing"). */
   engine?: GameEngine<unknown>;
   gameState?: unknown;
+  /** Turn order used by the previous turn-based game, so the next one differs. */
+  lastOrder?: string[];
 }
 
 type ChangeListener = (code: string) => void;
@@ -317,6 +342,20 @@ export class RoomManager {
     if (participants.length < meta.minPlayers) {
       return { ok: false, reason: `Need at least ${meta.minPlayers} players.` };
     }
+
+    // Randomize the turn order for turn-based games, avoiding an exact repeat of
+    // the previous game's order so "rejouer" reshuffles who plays after whom.
+    if (TURN_BASED_GAMES.has(room.selectedGame) && participants.length > 1) {
+      const sameAsLast = (ids: string[]) =>
+        room.lastOrder?.length === ids.length &&
+        ids.every((id, i) => room.lastOrder![i] === id);
+      for (let tries = 0; tries < 10; tries++) {
+        shuffleInPlace(participants);
+        if (!sameAsLast(participants.map((p) => p.id))) break;
+      }
+      room.lastOrder = participants.map((p) => p.id);
+    }
+
     room.engine = ENGINES[room.selectedGame];
     room.gameState = room.engine.init(participants, Date.now(), {
       language: room.gameLanguage,

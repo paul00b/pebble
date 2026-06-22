@@ -43,25 +43,31 @@ const ident = (name) => ({ sessionId: `gt-${name}-${Math.random().toString(36).s
   await wait(300);
 
   ok(a.state.game?.kind === "bombparty", "bomb: game view broadcast");
-  ok(a.state.game.current === aId, "bomb: Alice goes first");
 
-  // Alice plays a valid word → bomb passes to Bob.
+  // Turn order is randomized each game — drive whoever the server seated first.
+  const byId = { [aId]: a, [bId]: b };
+  const firstId = a.state.game.current;
+  ok(firstId === aId || firstId === bId, "bomb: a known player goes first");
+  const secondId = firstId === aId ? bId : aId;
+  const first = byId[firstId], second = byId[secondId];
+
+  // The starter plays a valid word → bomb passes to the next player.
   const w1 = frWordWith(a.state.game.prompt);
-  a.sock.emit("game:action", { type: "submit", word: w1 });
+  first.sock.emit("game:action", { type: "submit", word: w1 });
   await wait(300);
-  ok(a.state.game.current === bId && a.state.game.lastEvent?.type === "valid",
-     `bomb: valid word "${w1}" passed bomb to Bob`);
+  ok(a.state.game.current === secondId && a.state.game.lastEvent?.type === "valid",
+     `bomb: valid word "${w1}" passed the bomb on`);
 
-  // Bob plays an invalid word → stays his turn.
-  b.sock.emit("game:action", { type: "submit", word: "zzzqxk" });
+  // The next player plays an invalid word → stays their turn.
+  second.sock.emit("game:action", { type: "submit", word: "zzzqxk" });
   await wait(250);
-  ok(a.state.game.current === bId && a.state.game.lastEvent?.type === "invalid",
-     "bomb: invalid word rejected, turn stays with Bob");
+  ok(a.state.game.current === secondId && a.state.game.lastEvent?.type === "invalid",
+     "bomb: invalid word rejected, turn stays put");
 
   // Live typing is mirrored to other players.
-  b.sock.emit("game:action", { type: "type", value: "hel" });
+  second.sock.emit("game:action", { type: "type", value: "hel" });
   await wait(200);
-  ok(a.state.game.typed === "hel", "bomb: live typing broadcast to the room");
+  ok(first.state.game.typed === "hel", "bomb: live typing broadcast to the room");
 
   a.sock.close(); b.sock.close();
 }

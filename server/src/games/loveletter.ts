@@ -134,7 +134,9 @@ function beginTurn(s: LLState) {
   const p = s.players[currentId(s)];
   p.shielded = false;
   p.hand.push(s.deck.pop()!);
-  forgetHand(s, currentId(s)); // they now hold two cards - old intel is stale
+  // NB: drawing a 2nd card does NOT stale others' intel — the peeked card is
+  // still in hand. Knowledge is cleared only when a card actually leaves the
+  // hand (play/swap/forced discard/elimination), handled at those sites.
 }
 
 function endRound(s: LLState) {

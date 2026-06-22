@@ -88,7 +88,8 @@ const ident = (name) => ({ sessionId: `ng-${name}-${Math.random().toString(36).s
   const aId = created.you;
   const jb = await new Promise((r) => b.sock.emit("room:join", { code, identity: ident("Bob") }, r));
   const bId = jb.you;
-  await new Promise((r) => c.sock.emit("room:join", { code, identity: ident("Cleo") }, r));
+  const jc = await new Promise((r) => c.sock.emit("room:join", { code, identity: ident("Cleo") }, r));
+  const cId = jc.you;
 
   const started = await new Promise((r) => a.sock.emit("room:start", r));
   ok(started.ok, "complots: host started the game");
@@ -99,23 +100,30 @@ const ident = (name) => ({ sessionId: `ng-${name}-${Math.random().toString(36).s
   ok(a.state.game.youCard != null, "complots: you see your own card");
   ok(b.state.game.youCard !== undefined && b.state.game.players.every((p) => p.revealed === null),
     "complots: nobody's card is public");
-  ok(a.state.game.currentId === aId, "complots: first joiner opens");
 
-  // Alice claims the Duke (tax). Bob calls liar; the server verifies.
-  a.sock.emit("game:action", { type: "act", act: "tax" });
+  // Turn order is randomized each game — drive whoever the server seated first.
+  const byId = { [aId]: a, [bId]: b, [cId]: c };
+  const firstId = a.state.game.currentId;
+  ok([aId, bId, cId].includes(firstId), "complots: a known player opens");
+  const actor = byId[firstId];
+  const challengerId = [aId, bId, cId].find((id) => id !== firstId);
+  const challenger = byId[challengerId];
+
+  // The opener claims the Duke (tax). Another player calls liar; server verifies.
+  actor.sock.emit("game:action", { type: "act", act: "tax" });
   await wait(250);
-  ok(b.state.game.phase === "react" && b.state.game.pending?.claim === "duke",
+  ok(challenger.state.game.phase === "react" && challenger.state.game.pending?.claim === "duke",
     "complots: the claim opened a reaction window for everyone");
-  ok(b.state.game.youCanChallenge === true && a.state.game.youCanChallenge === false,
+  ok(challenger.state.game.youCanChallenge === true && actor.state.game.youCanChallenge === false,
     "complots: per-player eligibility is tailored");
 
-  b.sock.emit("game:action", { type: "challenge" });
+  challenger.sock.emit("game:action", { type: "challenge" });
   await wait(250);
   ok(a.state.game.phase === "resolve" && a.state.game.lastEvent?.type === "challenge",
     "complots: the challenge was verified live");
   const ev = a.state.game.lastEvent;
   const someoneOut = a.state.game.players.some((p) => !p.alive && p.revealed);
-  ok(someoneOut && (ev.eliminatedId === aId || ev.eliminatedId === bId),
+  ok(someoneOut && (ev.eliminatedId === firstId || ev.eliminatedId === challengerId),
     "complots: the loser's card is face-up for the room");
 
   // The resolve pause is server-timed; wait for the next turn to open.
@@ -144,31 +152,37 @@ const ident = (name) => ({ sessionId: `ng-${name}-${Math.random().toString(36).s
   ok(g?.kind === "chateau" && g.phase === "playing", "chateau: playing view broadcast");
   ok(g.messenger === "village" && g.market.village.filter(Boolean).length === 3,
     "chateau: the Messenger opens on a stocked Village row");
-  const me = g.players.find((p) => p.id === aId);
-  ok(me.gold === 15 && me.keys === 2 && g.currentId === aId,
-    "chateau: 15 gold + 2 keys, first joiner opens");
 
-  // Alice spends a key to move the Messenger, then buys from the Château row.
-  a.sock.emit("game:action", { type: "messenger" });
+  // Turn order is randomized each game — drive whoever the server seated first.
+  const byId = { [aId]: a, [bId]: b };
+  const firstId = g.currentId;
+  ok(firstId === aId || firstId === bId, "chateau: a known player opens");
+  const secondId = firstId === aId ? bId : aId;
+  const first = byId[firstId], second = byId[secondId];
+  const me = g.players.find((p) => p.id === firstId);
+  ok(me.gold === 15 && me.keys === 2, "chateau: opener has 15 gold + 2 keys");
+
+  // The opener spends a key to move the Messenger, then buys from the Château row.
+  first.sock.emit("game:action", { type: "messenger" });
   await wait(250);
-  ok(a.state.game.messenger === "castle" && a.state.game.players.find((p) => p.id === aId).keys === 1,
+  ok(a.state.game.messenger === "castle" && a.state.game.players.find((p) => p.id === firstId).keys === 1,
     "chateau: a key moves the Messenger");
 
-  a.sock.emit("game:action", { type: "buy", index: 0, cell: 4 });
+  first.sock.emit("game:action", { type: "buy", index: 0, cell: 4 });
   await wait(300);
   const after = a.state.game;
-  const meAfter = after.players.find((p) => p.id === aId);
+  const meAfter = after.players.find((p) => p.id === firstId);
   ok(meAfter.placed === 1 && meAfter.grid[4] !== null, "chateau: the card landed in the grid");
-  ok(after.currentId === bId, "chateau: the turn passed to Bob");
+  ok(after.currentId === secondId, "chateau: the turn passed to the next player");
   ok(after.market.castle.filter(Boolean).length === 3, "chateau: the bought slot was refilled");
-  ok(b.state.game.players.find((p) => p.id === aId).grid[4] !== null,
+  ok(second.state.game.players.find((p) => p.id === firstId).grid[4] !== null,
     "chateau: tableaus are public to the whole room");
 
-  // Bob takes a card face-down.
-  b.sock.emit("game:action", { type: "buy", index: 1, cell: 0, faceDown: true });
+  // The next player takes a card face-down.
+  second.sock.emit("game:action", { type: "buy", index: 1, cell: 0, faceDown: true });
   await wait(300);
-  const bob = a.state.game.players.find((p) => p.id === bId);
-  ok(bob.placed === 1 && bob.grid[0]?.faceDown && bob.gold === 15 + 6 && bob.keys === 2 + 2,
+  const other = a.state.game.players.find((p) => p.id === secondId);
+  ok(other.placed === 1 && other.grid[0]?.faceDown && other.gold === 15 + 6 && other.keys === 2 + 2,
     "chateau: face-down pickup pays +6 gold +2 keys");
 
   a.sock.close(); b.sock.close();

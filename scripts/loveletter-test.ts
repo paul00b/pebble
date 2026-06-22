@@ -110,12 +110,16 @@ function rig(s: any, opts: { hands: Record<string, string[]>; deck?: string[]; c
   ok(s2.players.a.alive === false, "ll: discarding the Princess is fatal");
 
   const s3 = fresh("a", "b", "c");
-  rig(s3, { hands: { a: ["handmaid", "spy"], b: ["guard"], c: ["guard"] }, current: "a", deck: ["guard", "guard"] });
+  rig(s3, { hands: { a: ["handmaid", "spy"], b: ["guard"], c: ["guard"] }, current: "a", deck: ["guard", "guard", "guard", "guard"] });
   loveletter.action(s3, "a", { type: "play", card: "handmaid" }, P);
   ok(s3.players.a.shielded === true, "ll: the Handmaid raises the shield");
-  // back to a: shield drops at the start of their turn.
-  rig(s3, { hands: { b: ["guard"] }, current: "b" });
+  // The shield holds while the other players take their turns…
+  rig(s3, { hands: { b: ["guard"], c: ["spy"] }, current: "b" });
   loveletter.action(s3, "b", { type: "play", card: "guard", target: "c", guess: "king" }, P);
+  ok(s3.players.a.shielded === true, "ll: the Handmaid shield holds through other turns");
+  // …and drops only when a's own turn comes back around.
+  rig(s3, { hands: { b: ["spy"], c: ["guard"] }, current: "c" });
+  loveletter.action(s3, "c", { type: "play", card: "guard", target: "b", guess: "king" }, P);
   ok(s3.players.a.shielded === false, "ll: the shield drops when your turn comes back");
 }
 
@@ -123,8 +127,10 @@ function rig(s: any, opts: { hands: Record<string, string[]>; deck?: string[]; c
 {
   const s = fresh("a", "b", "c");
   rig(s, { hands: { a: ["prince", "spy"], b: ["king"], c: ["spy"] }, current: "a", deck: ["baron", "guard", "guard"] });
-  loveletter.action(s, "a", { type: "play", card: "prince", target: "b" }, P);
-  ok(s.players.b.discards.includes("king") && s.players.b.hand.length === 1,
+  // Target the last player in turn order so their fresh hand isn't immediately
+  // topped up by their own turn's draw — we want to see just the redraw.
+  loveletter.action(s, "a", { type: "play", card: "prince", target: "c" }, P);
+  ok(s.players.c.discards.includes("spy") && s.players.c.hand.length === 1,
     "ll: the Prince forces a discard and a redraw");
 
   const s2 = fresh("a", "b", "c");
@@ -172,7 +178,7 @@ function rig(s: any, opts: { hands: Record<string, string[]>; deck?: string[]; c
     "ll: only the Chancellor player chooses");
   const deckBefore = s.deck.length;
   loveletter.action(s, "a", { type: "keep", card: "spy" }, P);
-  ok(s.players.a.hand.length === 2, // kept spy + drew for the next... no: turn passed.
+  ok(s.players.a.hand.length === 1, // kept spy alone; the turn then passed on.
     "ll: keep resolves" );
   ok(s.deck.length === deckBefore + 2 - 1, // +2 returned, -1 drawn by next player
     "ll: the two rejected cards slid under the deck");
