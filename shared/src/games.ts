@@ -470,14 +470,23 @@ export type ComplotsRole = "duke" | "assassin" | "captain" | "contessa";
 
 export type ComplotsActKind = "income" | "foreign" | "tax" | "steal" | "assassin" | "coup";
 
-export type ComplotsPhase = "action" | "react" | "blockReact" | "resolve" | "over";
+export type ComplotsPhase =
+  | "action"
+  | "react"
+  | "blockReact"
+  | "lose"
+  | "resolve"
+  | "over";
 
 export interface ComplotsPlayerPublic {
   id: string;
   coins: number;
+  /** Still in the game (holds at least one face-down influence). */
   alive: boolean;
-  /** The card shown when this player was eliminated. */
-  revealed: ComplotsRole | null;
+  /** Face-down influence still held (0–2). */
+  influence: number;
+  /** Face-up lost influence, in the order they fell. */
+  revealed: ComplotsRole[];
 }
 
 /** The declared action awaiting reactions - claims are public, cards are not. */
@@ -502,9 +511,12 @@ export interface ComplotsEvent {
   challengerId?: string;
   challengedId?: string;
   claimed?: ComplotsRole;
-  shown?: ComplotsRole;
+  /** The proven card on a truthful challenge; null when the claim was a bluff. */
+  shown?: ComplotsRole | null;
   truthful?: boolean;
-  /** Whoever lost their card in this event. */
+  /** Influence lost as this resolved — each a face-up card and whether it was the last. */
+  losses?: { id: string; card: ComplotsRole; eliminated: boolean }[];
+  /** Whoever was fully knocked out (lost their last influence) this event. */
   eliminatedId?: string | null;
   /** Coins gained/stolen, for display. */
   amount?: number;
@@ -519,11 +531,11 @@ export interface ComplotsView {
   players: ComplotsPlayerPublic[];
   /** Whose turn it is to act. */
   currentId: string;
-  /** The viewer's hidden card (null once eliminated). */
-  youCard: ComplotsRole | null;
+  /** The viewer's hidden influence cards (empty once eliminated). */
+  youCards: ComplotsRole[];
   deckCount: number;
   pending: ComplotsPending | null;
-  /** Reaction-window / resolve-pause deadline (epoch ms; 0 when none). */
+  /** Reaction-window / resolve-pause / lose-pick deadline (epoch ms; 0 when none). */
   deadline: number;
   duration: number;
   /** Players who have waved the pending action through. */
@@ -532,6 +544,10 @@ export interface ComplotsView {
   youCanPass: boolean;
   youCanChallenge: boolean;
   youCanBlock: boolean;
+  /** During the "lose" phase: the player who must reveal an influence. */
+  losingId: string | null;
+  /** True when the viewer is the one who must pick a card to lose. */
+  youMustLose: boolean;
   /** With 10+ coins the current player must coup. */
   mustCoup: boolean;
   lastEvent: ComplotsEvent | null;
@@ -543,7 +559,9 @@ export type ComplotsAction =
   | { type: "act"; act: ComplotsActKind; target?: string }
   | { type: "pass" }
   | { type: "block" }
-  | { type: "challenge" };
+  | { type: "challenge" }
+  /** Choose which of your two influence cards to reveal when you must lose one. */
+  | { type: "lose"; index: number };
 
 /* ── Château Combo ───────────────────────────────────────────────────────── */
 

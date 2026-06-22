@@ -1,9 +1,10 @@
-// Complots - a one-card Coup. Everyone holds a single hidden role card and two
-// coins. On your turn you take an action - and you may CLAIM any role to take
-// its action, whether you hold it or not. Claimed actions open a short reaction
-// window where others can block (with a counter-claim) or call you a liar.
-// A challenge flips the card: the liar - or the wrongful accuser - is out.
-// One card = one life; last player standing wins.
+// Complots - a tabletop Coup. Everyone holds TWO hidden role cards (influence)
+// and two coins. On your turn you take an action - and you may CLAIM any role to
+// take its action, whether you hold it or not. Claimed actions open a short
+// reaction window where others can block (with a counter-claim) or call you a
+// liar. A challenge flips a card: the liar - or the wrongful accuser - loses an
+// influence. Lose an influence and you choose which of your two cards to reveal;
+// lose both and you're out. Last player with influence wins.
 //
 // Actions:
 //   income   +1 coin, unstoppable
@@ -13,7 +14,7 @@
 //   assassin pay 3, kill a target, claims Assassin - the target may counter-claim Contessa
 //   coup     pay 7, kill a target, unstoppable. At 10+ coins, coup is mandatory.
 //
-// Phase machine: action → (react → blockReact?) → resolve(pause) → next turn.
+// Phase machine: action → (react → blockReact?) → lose(pick)* → resolve(pause) → next turn.
 
 import type { Player } from "../../../shared/src/types.js";
 import type {
@@ -29,11 +30,15 @@ import type { ActionContext, GameEngine, InitOptions } from "./engine.js";
 
 /** How long a reaction window stays open before everyone is assumed to pass. */
 const REACT_MS = 15_000;
+/** How long a player has to choose which influence to lose before it auto-picks. */
+const LOSE_MS = 20_000;
 /** Dramatic pause after a verification / elimination, before the next turn. */
 const RESOLVE_MS = 4_000;
 
 const ROLES: ComplotsRole[] = ["duke", "assassin", "captain", "contessa"];
 const COPIES = 3;
+/** Influence cards each player is dealt. */
+const START_CARDS = 2;
 
 /** The counter-claim that blocks each blockable action. */
 const BLOCK_ROLE: Partial<Record<ComplotsActKind, ComplotsRole>> = {
@@ -55,13 +60,14 @@ const MUST_COUP_AT = 10;
 
 interface CPlayer {
   coins: number;
-  card: ComplotsRole | null;
-  alive: boolean;
-  revealed: ComplotsRole | null;
+  /** Face-down influence still held (0–2). */
+  cards: ComplotsRole[];
+  /** Face-up lost influence, in the order they fell. */
+  revealed: ComplotsRole[];
 }
 
 interface CState {
-  phase: "action" | "react" | "blockReact" | "resolve" | "over";
+  phase: "action" | "react" | "blockReact" | "lose" | "resolve" | "over";
   order: string[];
   players: Record<string, CPlayer>;
   deck: ComplotsRole[];
@@ -69,6 +75,8 @@ interface CState {
   turnIdx: number;
   pending: ComplotsPending | null;
   passed: string[];
+  /** Players who still owe an influence; the head picks during the "lose" phase. */
+  lossQueue: string[];
   deadline: number;
   duration: number;
   lastEvent: ComplotsEvent | null;
@@ -83,25 +91,44 @@ function shuffle<T>(a: T[]): T[] {
   return a;
 }
 
-const alive = (s: CState, pid: string) => s.players[pid]?.alive === true;
+const alive = (s: CState, pid: string) => (s.players[pid]?.cards.length ?? 0) > 0;
 const aliveIds = (s: CState) => s.order.filter((id) => alive(s, id));
 const currentId = (s: CState) => s.order[s.turnIdx];
 
-function eliminate(s: CState, pid: string) {
+/** Reveal one face-down card (the player's pick, or the first by default). */
+function revealCard(s: CState, pid: string, index: number) {
   const p = s.players[pid];
-  if (!p || !p.alive) return;
-  p.alive = false;
-  p.revealed = p.card;
-  p.card = null;
+  if (!p || p.cards.length === 0) return;
+  const i = index >= 0 && index < p.cards.length ? index : 0;
+  const [card] = p.cards.splice(i, 1);
+  p.revealed.push(card);
+  const eliminated = p.cards.length === 0;
+  if (s.lastEvent) {
+    (s.lastEvent.losses ??= []).push({ id: pid, card, eliminated });
+    if (eliminated) s.lastEvent.eliminatedId = pid;
+  }
 }
 
-/** A truthful claimer proves their card, then trades it for a fresh one. */
-function swapCard(s: CState, pid: string) {
+/** Knock a player fully out (used when they leave mid-game). */
+function eliminateFully(s: CState, pid: string) {
   const p = s.players[pid];
-  if (!p?.card) return;
-  s.deck.push(p.card);
+  if (!p) return;
+  while (p.cards.length > 0) p.revealed.push(p.cards.pop()!);
+}
+
+/** Queue an influence loss for `pid` (resolved via the lose phase / auto-pick). */
+function enqueueLoss(s: CState, pid: string) {
+  if (alive(s, pid)) s.lossQueue.push(pid);
+}
+
+/** A truthful claimer proves the named card, then trades it for a fresh one. */
+function swapCard(s: CState, pid: string, role: ComplotsRole) {
+  const p = s.players[pid];
+  const i = p?.cards.indexOf(role) ?? -1;
+  if (i === -1) return;
+  s.deck.push(p.cards[i]);
   shuffle(s.deck);
-  p.card = s.deck.pop() ?? null;
+  p.cards[i] = s.deck.pop()!;
 }
 
 /** Everyone alive who may still react to the pending action/block. */
@@ -127,6 +154,7 @@ function pause(s: CState, now: number) {
 function endTurn(s: CState) {
   s.pending = null;
   s.passed = [];
+  s.lossQueue = [];
   s.deadline = 0;
   const living = aliveIds(s);
   if (living.length <= 1) {
@@ -141,6 +169,33 @@ function endTurn(s: CState) {
   s.phase = "action";
 }
 
+/**
+ * Work through queued influence losses. A loser with two cards picks which to
+ * reveal (the "lose" phase); with one card it auto-reveals; with none we skip.
+ * When the queue empties we settle into the resolve pause.
+ */
+function processLosses(s: CState, now: number) {
+  while (s.lossQueue.length > 0) {
+    const pid = s.lossQueue[0];
+    const p = s.players[pid];
+    if (!p || p.cards.length === 0) {
+      s.lossQueue.shift();
+      continue;
+    }
+    if (p.cards.length === 1) {
+      revealCard(s, pid, 0);
+      s.lossQueue.shift();
+      continue;
+    }
+    // Two cards: the player chooses which influence to give up.
+    s.phase = "lose";
+    s.deadline = now + LOSE_MS;
+    s.duration = LOSE_MS;
+    return;
+  }
+  pause(s, now);
+}
+
 /** The pending action goes through (all passed, or a challenge failed). */
 function applyAction(s: CState, now: number) {
   const p = s.pending!;
@@ -149,15 +204,16 @@ function applyAction(s: CState, now: number) {
 
   if (p.act === "foreign" || p.act === "tax") {
     const amount = p.act === "foreign" ? 2 : 3;
-    if (actor.alive) actor.coins += amount;
+    if (alive(s, p.actorId)) actor.coins += amount;
     s.lastEvent = { type: p.act, actorId: p.actorId, act: p.act, amount, at: now };
     endTurn(s);
     return;
   }
   if (p.act === "steal") {
-    const amount = target?.alive ? Math.min(2, target.coins) : 0;
-    if (target?.alive && actor.alive) {
-      target.coins -= amount;
+    const canSteal = !!p.targetId && alive(s, p.targetId) && alive(s, p.actorId);
+    const amount = canSteal ? Math.min(2, target!.coins) : 0;
+    if (canSteal) {
+      target!.coins -= amount;
       actor.coins += amount;
     }
     s.lastEvent = { type: "steal", actorId: p.actorId, act: "steal", targetId: p.targetId, amount, at: now };
@@ -166,16 +222,16 @@ function applyAction(s: CState, now: number) {
   }
   if (p.act === "assassin") {
     const victim = p.targetId && alive(s, p.targetId) ? p.targetId : null;
-    if (victim) eliminate(s, victim);
     s.lastEvent = {
       type: "assassinated",
       actorId: p.actorId,
       act: "assassin",
       targetId: p.targetId,
-      eliminatedId: victim,
+      losses: [],
       at: now,
     };
-    pause(s, now);
+    if (victim) enqueueLoss(s, victim);
+    processLosses(s, now);
   }
 }
 
@@ -186,14 +242,10 @@ function resolveChallenge(s: CState, challengerId: string, now: number) {
   const challengedId = onBlock ? p.blockerId! : p.actorId;
   const claimed = onBlock ? p.blockRole! : p.claim!;
   const challenged = s.players[challengedId];
-  const truthful = challenged.card === claimed;
-  const shown = (challenged.card ?? challenged.revealed)!;
+  const truthful = challenged.cards.includes(claimed);
 
   if (truthful) {
-    eliminate(s, challengerId);
-    swapCard(s, challengedId); // proved it - trade the exposed card for a new one
-  } else {
-    eliminate(s, challengedId);
+    swapCard(s, challengedId, claimed); // proved it - trade the exposed card for a new one
   }
   s.lastEvent = {
     type: "challenge",
@@ -203,13 +255,16 @@ function resolveChallenge(s: CState, challengerId: string, now: number) {
     challengerId,
     challengedId,
     claimed,
-    shown,
+    shown: truthful ? claimed : null,
     truthful,
-    eliminatedId: truthful ? challengerId : challengedId,
+    losses: [],
     blockerId: p.blockerId,
     blockRole: p.blockRole,
     at: now,
   };
+
+  // The challenge loser gives up an influence (their choice of which).
+  enqueueLoss(s, truthful ? challengerId : challengedId);
 
   // Does the action still go through?
   //  - action claim was truthful  → yes (the challenger is out of the way)
@@ -220,7 +275,7 @@ function resolveChallenge(s: CState, challengerId: string, now: number) {
   if (goesThrough) {
     applyEffectSilently(s, now);
   }
-  pause(s, now);
+  processLosses(s, now);
 }
 
 /** Apply the pending action's effect without overwriting the challenge event. */
@@ -230,13 +285,13 @@ function applyEffectSilently(s: CState, _now: number) {
   const target = p.targetId ? s.players[p.targetId] : null;
   if (p.act === "foreign") actor.coins += 2;
   if (p.act === "tax") actor.coins += 3;
-  if (p.act === "steal" && target?.alive && actor.alive) {
+  if (p.act === "steal" && target && alive(s, p.targetId!) && alive(s, p.actorId)) {
     const amount = Math.min(2, target.coins);
     target.coins -= amount;
     actor.coins += amount;
   }
   if (p.act === "assassin" && p.targetId && alive(s, p.targetId)) {
-    eliminate(s, p.targetId);
+    enqueueLoss(s, p.targetId);
   }
 }
 
@@ -276,13 +331,15 @@ export const complots: GameEngine<CState> = {
       turnIdx: 0,
       pending: null,
       passed: [],
+      lossQueue: [],
       deadline: 0,
       duration: 0,
       lastEvent: null,
       winnerId: null,
     };
     for (const p of players) {
-      state.players[p.id] = { coins: 2, card: deck.pop() ?? null, alive: true, revealed: null };
+      const cards = Array.from({ length: START_CARDS }, () => deck.pop()!).filter(Boolean);
+      state.players[p.id] = { coins: 2, cards, revealed: [] };
     }
     return state;
   },
@@ -309,16 +366,16 @@ export const complots: GameEngine<CState> = {
       if (a.act === "coup") {
         if (me.coins < COUP_COST) return false;
         me.coins -= COUP_COST;
-        eliminate(state, targetId!);
         state.lastEvent = {
           type: "coup",
           actorId: pid,
           act: "coup",
           targetId,
-          eliminatedId: targetId,
+          losses: [],
           at: ctx.now,
         };
-        pause(state, ctx.now);
+        enqueueLoss(state, targetId!);
+        processLosses(state, ctx.now);
         return true;
       }
       if (a.act === "assassin" && me.coins < ASSASSIN_COST) return false;
@@ -334,6 +391,16 @@ export const complots: GameEngine<CState> = {
       };
       state.phase = "react";
       openWindow(state, ctx.now);
+      return true;
+    }
+
+    if (a.type === "lose") {
+      if (state.phase !== "lose" || state.lossQueue[0] !== pid) return false;
+      const me = state.players[pid];
+      if (a.index < 0 || a.index >= me.cards.length) return false;
+      revealCard(state, pid, a.index);
+      state.lossQueue.shift();
+      processLosses(state, ctx.now);
       return true;
     }
 
@@ -385,6 +452,13 @@ export const complots: GameEngine<CState> = {
       windowDone(state, now); // silence is consent
       return true;
     }
+    if (state.phase === "lose") {
+      const loser = state.lossQueue[0];
+      if (loser) revealCard(state, loser, 0); // dithered too long → first card falls
+      state.lossQueue.shift();
+      processLosses(state, now);
+      return true;
+    }
     if (state.phase === "resolve") {
       endTurn(state);
       return true;
@@ -395,7 +469,8 @@ export const complots: GameEngine<CState> = {
   onLeave(state, pid, now): boolean {
     if (!(pid in state.players)) return false;
     const wasAlive = alive(state, pid);
-    eliminate(state, pid);
+    eliminateFully(state, pid);
+    state.lossQueue = state.lossQueue.filter((id) => id !== pid);
     if (state.phase === "over" || !wasAlive) return true;
 
     const p = state.pending;
@@ -411,6 +486,9 @@ export const complots: GameEngine<CState> = {
     if (state.phase === "react" || state.phase === "blockReact") {
       // One fewer reactor - the window may now be unanimous.
       checkAllPassed(state, now);
+    } else if (state.phase === "lose") {
+      // The player on the spot left - settle the (now shorter) loss queue.
+      processLosses(state, now);
     }
     const living = aliveIds(state);
     if ((state.phase as CState["phase"]) !== "over" && living.length <= 1) {
@@ -428,10 +506,11 @@ export const complots: GameEngine<CState> = {
 
 function cpView(state: CState, viewer: string | null): ComplotsView {
   const me = viewer ? state.players[viewer] : undefined;
+  const meAlive = (me?.cards.length ?? 0) > 0;
   const inWindow = state.phase === "react" || state.phase === "blockReact";
   const isReactor =
     !!viewer &&
-    !!me?.alive &&
+    meAlive &&
     inWindow &&
     reactors(state).includes(viewer) &&
     !state.passed.includes(viewer);
@@ -451,11 +530,12 @@ function cpView(state: CState, viewer: string | null): ComplotsView {
     players: state.order.map((id) => ({
       id,
       coins: state.players[id].coins,
-      alive: state.players[id].alive,
+      alive: alive(state, id),
+      influence: state.players[id].cards.length,
       revealed: state.players[id].revealed,
     })),
     currentId: currentId(state),
-    youCard: me?.card ?? null,
+    youCards: me?.cards ?? [],
     deckCount: state.deck.length,
     pending: state.pending,
     deadline: state.deadline,
@@ -464,8 +544,11 @@ function cpView(state: CState, viewer: string | null): ComplotsView {
     youCanPass: isReactor,
     youCanChallenge,
     youCanBlock,
+    losingId: state.phase === "lose" ? state.lossQueue[0] ?? null : null,
+    youMustLose: state.phase === "lose" && !!viewer && state.lossQueue[0] === viewer,
     mustCoup:
-      state.phase === "action" && state.players[currentId(state)].coins >= MUST_COUP_AT,
+      state.phase === "action" && alive(state, currentId(state)) &&
+      state.players[currentId(state)].coins >= MUST_COUP_AT,
     lastEvent: state.lastEvent,
     winnerId: state.winnerId,
     over: state.phase === "over",

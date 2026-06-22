@@ -153,11 +153,19 @@ function Table({
                 {pl?.name ?? "?"} {p.id === youId && <span className="text-faint">({t("common.you")})</span>}
               </div>
               {p.alive ? (
-                <div className="text-xs tabular-nums text-amber-300">🪙 {p.coins}</div>
-              ) : p.revealed ? (
-                <RoleChip role={p.revealed} t={t} />
+                <>
+                  <div className="text-xs tabular-nums text-amber-300">🪙 {p.coins}</div>
+                  <Influence influence={p.influence} revealed={p.revealed} t={t} />
+                </>
               ) : (
-                <div className="text-xs text-faint">☠️</div>
+                <div className="flex flex-col items-center gap-1">
+                  <div className="text-xs text-faint">☠️</div>
+                  <div className="flex flex-wrap justify-center gap-1">
+                    {p.revealed.map((r, i) => (
+                      <RoleChip key={i} role={r} t={t} />
+                    ))}
+                  </div>
+                </div>
               )}
               {targetable && <div className="text-[0.65rem] text-rose-300">{t("cp.target")}</div>}
             </motion.button>
@@ -165,8 +173,8 @@ function Table({
         })}
       </div>
 
-      {/* your hidden card */}
-      {you?.alive && game.youCard && <YourCard role={game.youCard} t={t} />}
+      {/* your hidden cards */}
+      {you?.alive && game.youCards.length > 0 && <YourCards roles={game.youCards} t={t} />}
       {you && !you.alive && (
         <p className="text-center text-sm text-faint">☠️ {t("cp.youAreOut")}</p>
       )}
@@ -186,27 +194,102 @@ function Table({
           <Reaction game={game} players={players} t={t} />
         )}
 
+        {game.phase === "lose" && <Lose game={game} players={players} t={t} />}
+
         {game.phase === "resolve" && <Resolve game={game} players={players} t={t} />}
       </div>
     </div>
   );
 }
 
-/* ── Your hidden card (tap to peek) ───────────────────────────────────────── */
-function YourCard({ role, t }: { role: ComplotsRole; t: T }) {
+/* ── Influence indicator: face-down pips + lost cards ─────────────────────── */
+function Influence({
+  influence,
+  revealed,
+  t,
+}: {
+  influence: number;
+  revealed: ComplotsRole[];
+  t: T;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-1">
+      {Array.from({ length: influence }).map((_, i) => (
+        <span key={`d${i}`} className="h-2.5 w-2.5 rounded-full bg-white/45" />
+      ))}
+      {revealed.map((r, i) => (
+        <span
+          key={`r${i}`}
+          title={t(`cp.role.${r}`)}
+          className="text-sm leading-none opacity-90"
+          style={{ color: ROLE_HEX[r] }}
+        >
+          {ROLE_EMOJI[r]}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* ── Your hidden cards (tap to peek) ──────────────────────────────────────── */
+function YourCards({ roles, t }: { roles: ComplotsRole[]; t: T }) {
   const [shown, setShown] = useState(false);
   return (
     <motion.button
       onClick={() => setShown((v) => !v)}
       whileTap={{ scale: 0.98 }}
-      className="mx-auto flex h-14 w-full max-w-xs items-center justify-center rounded-2xl border border-white/10 bg-white/5 transition hover:bg-white/8"
+      className="mx-auto flex min-h-14 w-full max-w-xs flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 transition hover:bg-white/8"
     >
       {shown ? (
-        <RoleChip role={role} t={t} big />
+        roles.map((role, i) => <RoleChip key={i} role={role} t={t} big />)
       ) : (
-        <span className="text-sm text-mist">🂠 {t("sf.tapToPeek")}</span>
+        <span className="text-sm text-mist">🂠🂠 {t("sf.tapToPeek")}</span>
       )}
     </motion.button>
+  );
+}
+
+/* ── Lose phase: pick which influence to give up ──────────────────────────── */
+function Lose({
+  game,
+  players,
+  t,
+}: {
+  game: ComplotsView;
+  players: Record<string, Player>;
+  t: T;
+}) {
+  const gameAction = useStore((s) => s.gameAction);
+
+  if (game.youMustLose) {
+    return (
+      <GlassCard strong className="space-y-3 p-4 text-center">
+        <div className="font-display text-lg font-semibold text-rose-200">
+          {t("cp.pickCardToLose")}
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          {game.youCards.map((role, i) => (
+            <button
+              key={i}
+              onClick={() => gameAction({ type: "lose", index: i })}
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 transition hover:border-rose-300/70 hover:bg-rose-400/15"
+            >
+              <RoleChip role={role} t={t} big />
+            </button>
+          ))}
+        </div>
+        <Countdown game={game} />
+      </GlassCard>
+    );
+  }
+
+  return (
+    <GlassCard strong className="space-y-3 p-4 text-center">
+      <div className="text-sm text-mist">
+        {t("cp.waitingLose", { name: name(players, game.losingId) })}
+      </div>
+      <Countdown game={game} />
+    </GlassCard>
   );
 }
 
@@ -386,7 +469,7 @@ function Resolve({
       >
         <div className="font-display text-lg font-semibold text-cloud">{headline}</div>
 
-        {e.type === "challenge" && e.shown && (
+        {e.type === "challenge" && (
           <motion.div
             initial={{ rotateY: 90, opacity: 0 }}
             animate={{ rotateY: 0, opacity: 1 }}
@@ -395,16 +478,30 @@ function Resolve({
             <div className="mb-1 text-xs text-faint">
               {t("cp.shows", { name: name(players, e.challengedId) })}
             </div>
-            <RoleChip role={e.shown} t={t} big />
+            {e.shown ? (
+              <RoleChip role={e.shown} t={t} big />
+            ) : (
+              e.claimed && (
+                <span className="text-sm text-faint line-through">
+                  <RoleChip role={e.claimed} t={t} />
+                </span>
+              )
+            )}
             <div className={`mt-2 text-sm font-semibold ${e.truthful ? "text-emerald-300" : "text-rose-300"}`}>
               {e.truthful ? t("cp.truth") : t("cp.lie")}
             </div>
           </motion.div>
         )}
 
-        {e.eliminatedId && (
-          <div className="text-sm text-rose-300">
-            ☠️ {t("cp.loses", { name: name(players, e.eliminatedId) })}
+        {/* Which influence(s) fell as this resolved */}
+        {e.losses && e.losses.length > 0 && (
+          <div className="space-y-1">
+            {e.losses.map((l, i) => (
+              <div key={i} className="flex items-center justify-center gap-2 text-sm text-rose-300">
+                {l.eliminated ? "☠️" : "💔"} {t("cp.losesInfluence", { name: name(players, l.id) })}
+                <RoleChip role={l.card} t={t} />
+              </div>
+            ))}
           </div>
         )}
         <Countdown game={game} />
@@ -453,7 +550,11 @@ function Results({
               <span className={p.alive ? "text-cloud" : "text-faint"}>
                 {players[p.id]?.avatar} {players[p.id]?.name} {p.alive ? "" : "☠️"}
               </span>
-              {p.revealed && <RoleChip role={p.revealed} t={t} />}
+              <span className="flex flex-wrap justify-end gap-1">
+                {p.revealed.map((r, i) => (
+                  <RoleChip key={i} role={r} t={t} />
+                ))}
+              </span>
             </div>
           ))}
         </div>

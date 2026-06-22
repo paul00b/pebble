@@ -97,9 +97,10 @@ const ident = (name) => ({ sessionId: `ng-${name}-${Math.random().toString(36).s
 
   ok(a.state.game?.kind === "complots" && a.state.game.phase === "action",
     "complots: action phase broadcast");
-  ok(a.state.game.youCard != null, "complots: you see your own card");
-  ok(b.state.game.youCard !== undefined && b.state.game.players.every((p) => p.revealed === null),
-    "complots: nobody's card is public");
+  ok(Array.isArray(a.state.game.youCards) && a.state.game.youCards.length === 2,
+    "complots: you hold two hidden influence cards");
+  ok(b.state.game.players.every((p) => p.influence === 2 && p.revealed.length === 0),
+    "complots: everyone starts with two face-down influence, nothing public");
 
   // Turn order is randomized each game — drive whoever the server seated first.
   const byId = { [aId]: a, [bId]: b, [cId]: c };
@@ -119,12 +120,16 @@ const ident = (name) => ({ sessionId: `ng-${name}-${Math.random().toString(36).s
 
   challenger.sock.emit("game:action", { type: "challenge" });
   await wait(250);
-  ok(a.state.game.phase === "resolve" && a.state.game.lastEvent?.type === "challenge",
-    "complots: the challenge was verified live");
-  const ev = a.state.game.lastEvent;
-  const someoneOut = a.state.game.players.some((p) => !p.alive && p.revealed);
-  ok(someoneOut && (ev.eliminatedId === firstId || ev.eliminatedId === challengerId),
-    "complots: the loser's card is face-up for the room");
+  // The challenge loser still has both cards, so the game pauses for them to pick one.
+  ok(a.state.game.lastEvent?.type === "challenge", "complots: the challenge was verified live");
+  ok(a.state.game.phase === "lose", "complots: the loser must drop an influence");
+  const loserId = a.state.game.losingId;
+  ok(loserId === firstId || loserId === challengerId, "complots: the loser is the actor or the accuser");
+  byId[loserId].sock.emit("game:action", { type: "lose", index: 0 });
+  await wait(250);
+  const dropped = a.state.game.players.find((p) => p.id === loserId);
+  ok(dropped.revealed.length === 1 && dropped.influence === 1,
+    "complots: the chosen influence is face-up for the room, one still hidden");
 
   // The resolve pause is server-timed; wait for the next turn to open.
   await wait(4500);

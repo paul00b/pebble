@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import { useT } from "@/lib/useT";
 import {
   LL_CARD_ORDER,
+  LL_COUNTS,
   LL_VALUES,
   type LoveLetterCard,
   type LoveLetterView,
@@ -139,7 +140,8 @@ function Round({
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-3 pb-6">
+    <div className="flex flex-1 gap-4">
+     <div className="flex min-w-0 flex-1 flex-col gap-3 pb-6">
       {/* header */}
       <div className="flex items-center justify-between text-xs text-faint">
         <span>{t("ll.round", { n: game.round })}</span>
@@ -147,6 +149,16 @@ function Round({
           🂠 {t("ll.deck", { n: game.deckCount })} · ❤️ {t("ll.toWin", { n: game.tokensToWin })}
         </span>
       </div>
+
+      {/* role powers — collapsible on small screens (the right rail shows it on lg+) */}
+      <details className="rounded-xl border border-white/10 bg-white/5 lg:hidden">
+        <summary className="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-mist">
+          📖 {t("ll.guide")}
+        </summary>
+        <div className="px-3 pb-3">
+          <RoleList t={t} />
+        </div>
+      </details>
 
       {/* players */}
       <div className="flex flex-wrap justify-center gap-2">
@@ -305,7 +317,46 @@ function Round({
           </>
         )}
       </div>
+     </div>
+
+      {/* persistent right rail on wider screens */}
+      <RoleGuide t={t} className="hidden w-64 shrink-0 lg:block" />
     </div>
+  );
+}
+
+/* ── Role-power reference, shared by every player ─────────────────────────── */
+function RoleList({ t }: { t: T }) {
+  return (
+    <div className="space-y-1.5">
+      {LL_CARD_ORDER.map((c) => (
+        <div key={c} className="flex gap-2">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/10 font-display text-xs font-bold tabular-nums text-accent">
+            {LL_VALUES[c]}
+          </span>
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-cloud">
+              {CARD_EMOJI[c]} {t(`ll.card.${c}`)}
+              <span className="ml-1 text-[0.6rem] font-normal text-faint">×{LL_COUNTS[c]}</span>
+            </div>
+            <div className="text-[0.65rem] leading-snug text-mist">{t(`ll.fx.${c}`)}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RoleGuide({ t, className }: { t: T; className?: string }) {
+  return (
+    <aside className={className}>
+      <GlassCard className="sticky top-2 p-3">
+        <div className="mb-2 font-display text-xs font-semibold uppercase tracking-wider text-mist">
+          📖 {t("ll.guide")}
+        </div>
+        <RoleList t={t} />
+      </GlassCard>
+    </aside>
   );
 }
 

@@ -159,11 +159,11 @@ export const GAMES: GameMeta[] = [
   {
     id: "complots",
     name: "Complots",
-    tagline: "One hidden card. Claim any role you like - until someone calls liar.",
+    tagline: "Two hidden roles. Claim any card you like - until someone calls liar.",
     emoji: "🎭",
     minPlayers: 3,
-    maxPlayers: 8,
-    duration: "5–10 min",
+    maxPlayers: 6,
+    duration: "10–15 min",
   },
   {
     id: "chateau",
