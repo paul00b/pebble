@@ -22,6 +22,7 @@ import {
   PB_CATEGORIES,
   PB_DEFAULT_CATEGORIES,
   SF_BOUNDS,
+  UNO_BOUNDS,
   type BombPartySettings,
   type CodenamesSettings,
   type Devine9Settings,
@@ -29,6 +30,7 @@ import {
   type PetitBacSettings,
   type SpyfallSettings,
   type RoomState,
+  type UnoSettings,
 } from "@shared";
 
 export function Lobby({
@@ -393,7 +395,8 @@ function GameRules({ room, isHost }: { room: RoomState; isHost: boolean }) {
     room.selectedGame === "codenames" ||
     room.selectedGame === "petitbac" ||
     room.selectedGame === "devine9" ||
-    room.selectedGame === "spyfall";
+    room.selectedGame === "spyfall" ||
+    room.selectedGame === "uno";
 
   return (
     <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -446,6 +449,12 @@ function GameRules({ room, isHost }: { room: RoomState; isHost: boolean }) {
         <RulesList prefix="ch" steps={["goal", "market", "place", "facedown", "combo", "score"]} />
       ) : room.selectedGame === "loveletter" ? (
         <RulesList prefix="ll" steps={["deal", "turn", "out", "end", "spy", "tokens"]} />
+      ) : room.selectedGame === "uno" ? (
+        <UnoRules
+          s={room.settings.uno}
+          isHost={isHost}
+          onChange={(patch) => updateSettings("uno", patch)}
+        />
       ) : room.selectedGame === "sixquiprend" ? (
         <RulesList prefix="sixqp" steps={["pick", "place", "sixth", "low", "win"]} />
       ) : room.selectedGame === "skyjo" ? (
@@ -795,6 +804,109 @@ function SpyfallRules({
         onChange={(v) => onChange({ roundSec: v })}
       />
       <p className="text-xs leading-snug text-faint">{t("set.sf.hint")}</p>
+    </div>
+  );
+}
+
+function UnoRules({
+  s,
+  isHost,
+  onChange,
+}: {
+  s: UnoSettings;
+  isHost: boolean;
+  onChange: (patch: Record<string, number | boolean>) => void;
+}) {
+  const t = useT();
+  return (
+    <div className="flex flex-col gap-4">
+      <Stepper
+        label={t("set.uno.startingHand")}
+        value={s.startingHand}
+        format={(v) => t("set.uno.cards", { n: v })}
+        min={UNO_BOUNDS.startingHand.min}
+        max={UNO_BOUNDS.startingHand.max}
+        disabled={!isHost}
+        onChange={(v) => onChange({ startingHand: v })}
+      />
+      <Toggle
+        label={t("set.uno.stacking")}
+        hint={t("set.uno.stackingHint")}
+        value={s.stacking}
+        disabled={!isHost}
+        onChange={(v) => onChange({ stacking: v })}
+      />
+      <Toggle
+        label={t("set.uno.drawToMatch")}
+        value={s.drawToMatch}
+        disabled={!isHost}
+        onChange={(v) => onChange({ drawToMatch: v })}
+      />
+      <Toggle
+        label={t("set.uno.forcePlay")}
+        value={s.forcePlay}
+        disabled={!isHost}
+        onChange={(v) => onChange({ forcePlay: v })}
+      />
+      <Stepper
+        label={t("set.uno.unoPenalty")}
+        value={s.unoPenalty}
+        format={(v) => t("set.uno.cards", { n: v })}
+        min={UNO_BOUNDS.unoPenalty.min}
+        max={UNO_BOUNDS.unoPenalty.max}
+        disabled={!isHost}
+        onChange={(v) => onChange({ unoPenalty: v })}
+      />
+      <Stepper
+        label={t("set.uno.scoreTarget")}
+        value={s.scoreTarget}
+        step={100}
+        format={(v) => (v === 0 ? t("set.uno.singleRound") : t("set.uno.points", { n: v }))}
+        min={UNO_BOUNDS.scoreTarget.min}
+        max={UNO_BOUNDS.scoreTarget.max}
+        disabled={!isHost}
+        onChange={(v) => onChange({ scoreTarget: v })}
+      />
+      <p className="text-xs leading-snug text-faint">{t("set.uno.hint")}</p>
+    </div>
+  );
+}
+
+/** A pill on/off switch for boolean rules (host-only). */
+function Toggle({
+  label,
+  hint,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <span className="text-sm text-cloud">{label}</span>
+        {hint && <p className="text-xs leading-snug text-faint">{hint}</p>}
+      </div>
+      <button
+        role="switch"
+        aria-checked={value}
+        disabled={disabled}
+        onClick={() => onChange(!value)}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+          value ? "bg-accent" : "bg-white/10"
+        } ${disabled ? "cursor-default opacity-70" : "cursor-pointer"}`}
+      >
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+            value ? "left-[1.4rem]" : "left-0.5"
+          }`}
+        />
+      </button>
     </div>
   );
 }

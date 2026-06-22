@@ -3,7 +3,7 @@
 // format. Import these into `io<...>()` (server) and `Socket<...>()` (client).
 
 import type { GameId, RoomState } from "./types";
-import type { DrawOp, GameAction, Language } from "./games";
+import type { DrawOp, GameAction, Language, SandboxOp } from "./games";
 
 /** Patch to a single game's host-configured rules. */
 export interface UpdateSettingsPayload {
@@ -78,6 +78,8 @@ export interface ClientToServerEvents {
   "board:request": () => void;
   /** Shuffle the lobby whiteboard's "draw this" prompt word. */
   "board:newWord": () => void;
+  /** Shared physics sandbox op (host broadcasts state; anyone sends intents). */
+  "sandbox:op": (op: SandboxOp) => void;
 }
 
 /** Events the server emits to clients. */
@@ -100,6 +102,8 @@ export interface ServerToClientEvents {
   /** A relayed lobby-whiteboard stroke, or the full op list as a sync. */
   "board:op": (op: DrawOp) => void;
   "board:sync": (ops: DrawOp[]) => void;
+  /** A relayed sandbox op (state broadcast from the host, or an intent). */
+  "sandbox:op": (op: SandboxOp) => void;
 }
 
 /** Per-socket data the server tracks. */

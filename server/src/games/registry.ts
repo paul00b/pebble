@@ -11,6 +11,7 @@ import { spyfall } from "./spyfall.js";
 import { complots } from "./complots.js";
 import { chateau } from "./chateau.js";
 import { loveletter } from "./loveletter.js";
+import { uno } from "./uno.js";
 
 export const ENGINES: Record<GameId, GameEngine<any>> = {
   bombparty: bombParty,
@@ -24,4 +25,5 @@ export const ENGINES: Record<GameId, GameEngine<any>> = {
   complots,
   chateau,
   loveletter,
+  uno,
 };

@@ -256,6 +256,12 @@ io.on("connection", (socket) => {
     if (roomCode && sessionId) manager.newBoardWord(roomCode, sessionId);
   });
 
+  // ── Shared physics sandbox (host-authoritative; pure relay, no server state) ──
+  socket.on("sandbox:op", (op) => {
+    const { roomCode } = socket.data;
+    if (roomCode) socket.to(roomCode).emit("sandbox:op", op);
+  });
+
   socket.on("room:kick", (targetId) => {
     const { roomCode, sessionId } = socket.data;
     if (roomCode && sessionId) manager.kick(roomCode, sessionId, targetId);

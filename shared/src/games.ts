@@ -333,6 +333,21 @@ export type DrawOp =
   | { t: "fill"; x: number; y: number; c: string }
   | { t: "clear" };
 
+/* ── Sandbox (shared physics playground) ─────────────────────────────────────
+ * A side-channel relayed like DrawOp (not part of a game). Every client runs
+ * its own local sim over its own lobby cards; we only broadcast spawns and
+ * clears so the same shapes appear for everyone (positions drift per screen,
+ * since each plays on its own card layout). */
+
+export const SANDBOX_SHAPES = ["circle", "square", "flat", "triangle", "pentagon", "hexagon"] as const;
+export type SandboxShape = (typeof SANDBOX_SHAPES)[number];
+
+export type SandboxOp =
+  /** A shape was dropped: shapeIdx, normalized x (0–1), colorIdx, angle (rad). */
+  | { t: "spawn"; s: number; x: number; c: number; a: number }
+  /** The board was wiped. */
+  | { t: "clear" };
+
 /* ── Devine 9 (guess 9) ──────────────────────────────────────────────────── */
 
 export type Devine9Team = "red" | "blue";
@@ -689,6 +704,102 @@ export type LoveLetterAction =
   /** Host advances to the next round after the reveal. */
   | { type: "next" };
 
+/* ── Uno ─────────────────────────────────────────────────────────────────── */
+
+export type UnoColor = "red" | "yellow" | "green" | "blue";
+export const UNO_COLORS: UnoColor[] = ["red", "yellow", "green", "blue"];
+
+/** Card kinds. `wild` / `wild4` are colorless until played. */
+export type UnoCardKind = "num" | "skip" | "reverse" | "draw2" | "wild" | "wild4";
+
+export interface UnoCard {
+  /** Stable per-deck id (so the client can key/animate a specific card). */
+  id: string;
+  /** null for wilds while still in hand (a chosen color is reflected on the pile). */
+  color: UnoColor | null;
+  kind: UnoCardKind;
+  /** 0–9 for `num`, else null. */
+  value: number | null;
+}
+
+/** Point value of a card for end-of-round scoring. */
+export function unoCardPoints(card: UnoCard): number {
+  if (card.kind === "num") return card.value ?? 0;
+  if (card.kind === "wild" || card.kind === "wild4") return 50;
+  return 20; // skip / reverse / draw2
+}
+
+export interface UnoPlayerPublic {
+  id: string;
+  /** Cards left in hand (hands themselves are private). */
+  count: number;
+  /** Has declared "Uno!" while at one card. */
+  saidUno: boolean;
+  /** Cumulative match score (points scored by round winners). */
+  score: number;
+}
+
+export interface UnoView {
+  kind: "uno";
+  /** play = normal turn; decideDrawn = current player just drew a playable card;
+   *  roundOver = a hand was emptied (scoreboard); over = match finished. */
+  phase: "play" | "decideDrawn" | "roundOver" | "over";
+  players: UnoPlayerPublic[];
+  /** Turn order (player ids), in seating order. */
+  order: string[];
+  /** The viewer's own hand (empty for the public/spectator view). */
+  hand: UnoCard[];
+  /** Ids of the viewer's cards that are legal to play right now (their turn). */
+  playableIds: string[];
+  currentId: string;
+  /** 1 = clockwise through `order`, -1 = counter-clockwise. */
+  dir: 1 | -1;
+  /** Top of the discard pile (the card to match). */
+  topCard: UnoCard | null;
+  /** Active color to match (a wild sets this). */
+  currentColor: UnoColor;
+  /** Cards left in the draw pile. */
+  drawCount: number;
+  /** Accumulated +2/+4 the current player must eat (0 when none pending). */
+  pendingDraw: number;
+  /** The card the viewer just drew and may play, during `decideDrawn`. */
+  drawnCardId: string | null;
+  /** During `decideDrawn`: the host rule forces playing the drawn card. */
+  mustPlayDrawn: boolean;
+  /** Player ids the viewer may "catch" for not calling Uno. */
+  catchable: string[];
+  /** Last thing that happened, for feedback + animation cues. */
+  lastEvent?: {
+    type: "play" | "draw" | "skip" | "reverse" | "wild" | "uno" | "catch" | "stack";
+    playerId: string;
+    card?: UnoCard;
+    /** Cards drawn (draw/eat/catch). */
+    count?: number;
+    at: number;
+  };
+  round: number;
+  roundWinnerId?: string | null;
+  /** Points scored on the just-finished round, by player id (roundOver only). */
+  roundPoints?: Record<string, number>;
+  scoreTarget: number;
+  matchWinnerId?: string | null;
+  over: boolean;
+}
+
+export type UnoAction =
+  /** Play a card; `color` is required for wilds. */
+  | { type: "play"; cardId: string; color?: UnoColor }
+  /** Draw from the pile (or eat the pending +2/+4 stack). */
+  | { type: "draw" }
+  /** During `decideDrawn`: decline to play the card just drawn. */
+  | { type: "pass" }
+  /** Declare "Uno!" (protects you from a catch when you reach one card). */
+  | { type: "callUno" }
+  /** Catch a player who reached one card without calling Uno. */
+  | { type: "catch"; targetId: string }
+  /** Start the next round (host) after a round's scoreboard. */
+  | { type: "next" };
+
 /* ── Unions ──────────────────────────────────────────────────────────────── */
 
 export type GameView =
@@ -702,7 +813,8 @@ export type GameView =
   | SpyfallView
   | ComplotsView
   | ChateauView
-  | LoveLetterView;
+  | LoveLetterView
+  | UnoView;
 export type GameAction =
   | BombPartyAction
   | PetitBacAction
@@ -714,4 +826,5 @@ export type GameAction =
   | SpyfallAction
   | ComplotsAction
   | ChateauAction
-  | LoveLetterAction;
+  | LoveLetterAction
+  | UnoAction;

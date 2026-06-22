@@ -16,7 +16,8 @@ export type GameId =
   | "spyfall"
   | "complots"
   | "chateau"
-  | "loveletter";
+  | "loveletter"
+  | "uno";
 
 /** High-level phase of a room. */
 export type RoomPhase = "lobby" | "playing" | "results";
@@ -180,6 +181,15 @@ export const GAMES: GameMeta[] = [
     emoji: "💌",
     minPlayers: 2,
     maxPlayers: 6,
+    duration: "10–20 min",
+  },
+  {
+    id: "uno",
+    name: "Uno",
+    tagline: "Match colors and numbers, dump your hand — and shout Uno!",
+    emoji: "🎴",
+    minPlayers: 2,
+    maxPlayers: 10,
     duration: "10–20 min",
   },
 ];

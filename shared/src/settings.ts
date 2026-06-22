@@ -99,6 +99,29 @@ export const SF_BOUNDS = {
   roundSec: { min: 120, max: 600 },
 } as const;
 
+/* ── Uno ─────────────────────────────────────────────────────────────────── */
+
+export interface UnoSettings {
+  /** Cards dealt to each player at the start of a round. */
+  startingHand: number;
+  /** Allow stacking +2 on +2 and +4 on +4 (the next player adds instead of eating). */
+  stacking: boolean;
+  /** When you can't (or won't) play, keep drawing until you hit a playable card. */
+  drawToMatch: boolean;
+  /** If a freshly drawn card is playable, you must play it (no keeping it). */
+  forcePlay: boolean;
+  /** Cards drawn by a player caught not calling Uno. */
+  unoPenalty: number;
+  /** Points target to win the match. 0 = a single round, first to empty wins. */
+  scoreTarget: number;
+}
+
+export const UNO_BOUNDS = {
+  startingHand: { min: 5, max: 10 },
+  unoPenalty: { min: 1, max: 6 },
+  scoreTarget: { min: 0, max: 1000 },
+} as const;
+
 /** One settings object per game. Games without options use an empty object. */
 export interface AllSettings {
   bombparty: BombPartySettings;
@@ -112,6 +135,7 @@ export interface AllSettings {
   complots: Record<string, never>;
   chateau: Record<string, never>;
   loveletter: Record<string, never>;
+  uno: UnoSettings;
 }
 
 export const DEFAULT_SETTINGS: AllSettings = {
@@ -133,6 +157,14 @@ export const DEFAULT_SETTINGS: AllSettings = {
   complots: {},
   chateau: {},
   loveletter: {},
+  uno: {
+    startingHand: 7,
+    stacking: false,
+    drawToMatch: false,
+    forcePlay: false,
+    unoPenalty: 2,
+    scoreTarget: 0,
+  },
 };
 
 /** Editable ranges, shared by the client UI and server validation. */
@@ -236,6 +268,33 @@ export function sanitizeSpyfall(patch: Partial<SpyfallSettings>): SpyfallSetting
   };
 }
 
+const asBool = (v: unknown, fallback: boolean): boolean =>
+  typeof v === "boolean" ? v : fallback;
+
+/** Clamp an (untrusted) Uno settings patch into valid, complete settings. */
+export function sanitizeUno(patch: Partial<UnoSettings>): UnoSettings {
+  const d = DEFAULT_SETTINGS.uno;
+  return {
+    startingHand: clampInt(
+      patch.startingHand,
+      UNO_BOUNDS.startingHand.min,
+      UNO_BOUNDS.startingHand.max,
+      d.startingHand
+    ),
+    stacking: asBool(patch.stacking, d.stacking),
+    drawToMatch: asBool(patch.drawToMatch, d.drawToMatch),
+    forcePlay: asBool(patch.forcePlay, d.forcePlay),
+    unoPenalty: clampInt(patch.unoPenalty, UNO_BOUNDS.unoPenalty.min, UNO_BOUNDS.unoPenalty.max, d.unoPenalty),
+    // Snap the points target to the nearest 100 (matching the stepper).
+    scoreTarget:
+      clampInt(patch.scoreTarget, UNO_BOUNDS.scoreTarget.min, UNO_BOUNDS.scoreTarget.max, d.scoreTarget) < 50
+        ? 0
+        : Math.round(
+            clampInt(patch.scoreTarget, UNO_BOUNDS.scoreTarget.min, UNO_BOUNDS.scoreTarget.max, d.scoreTarget) / 100
+          ) * 100,
+  };
+}
+
 /** Merge a patch into a game's current settings and return validated settings. */
 export function sanitizeSettings<G extends GameId>(
   game: G,
@@ -256,6 +315,9 @@ export function sanitizeSettings<G extends GameId>(
   }
   if (game === "spyfall") {
     return sanitizeSpyfall({ ...(current as SpyfallSettings), ...patch } as Partial<SpyfallSettings>) as AllSettings[G];
+  }
+  if (game === "uno") {
+    return sanitizeUno({ ...(current as UnoSettings), ...patch } as Partial<UnoSettings>) as AllSettings[G];
   }
   // Games without options ignore patches.
   return current;

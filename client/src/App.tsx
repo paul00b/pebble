@@ -50,12 +50,11 @@ export default function App() {
         />
       )}
 
-      {/* Solo physics playground - overlays the home screen or the lobby. */}
+      {/* Physics playground — overlays the home screen or the lobby. In a room
+          it's shared (spawns/clears broadcast); otherwise a solo toy. */}
       {sandbox && (
-        <Suspense
-          fallback={<div className="fixed inset-0 z-50 grid place-items-center bg-ink-800 text-faint">…</div>}
-        >
-          <Sandbox onBack={() => setSandbox(false)} />
+        <Suspense fallback={null}>
+          <Sandbox onBack={() => setSandbox(false)} shared={!!room} />
         </Suspense>
       )}
 

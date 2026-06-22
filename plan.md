@@ -251,7 +251,7 @@ On your go, I'll start **Phase 0 + Phase 1**: scaffold the monorepo and build th
 
 ## 13. Build status / resume notes
 
-> Living log of what's actually built, so work can be picked up on any machine. Last updated: **2026-06-11**.
+> Living log of what's actually built, so work can be picked up on any machine. Last updated: **2026-06-19**.
 
 ### Repo reality (vs. §5 plan)
 - Workspace name is **`pebble`** (npm workspaces, not pnpm). Two workspaces: `client/` (React + Vite) and `server/` (Node + Socket.IO). Shared types live in **`shared/src/`** and are imported by relative path (`../../../shared/src/*.js`) on the server and via the `@shared` alias on the client.
@@ -266,7 +266,9 @@ On your go, I'll start **Phase 0 + Phase 1**: scaffold the monorepo and build th
 | 6 Qui Prend | `server/src/games/sixquiprend.ts` | `client/src/games/SixQuiPrend.tsx` |
 | Codenames | `server/src/games/codenames.ts` | `client/src/games/Codenames.tsx` |
 | Skyjo | `server/src/games/skyjo.ts` | `client/src/games/Skyjo.tsx` |
-| **Gartic** ✅ *(just added)* | `server/src/games/gartic.ts` + `garticWords.ts` | `client/src/games/Gartic.tsx` |
+| Gartic | `server/src/games/gartic.ts` + `garticWords.ts` | `client/src/games/Gartic.tsx` |
+| Devine 9 | `server/src/games/devine9.ts` | `client/src/games/Devine9.tsx` |
+| **Uno** ✅ *(just added)* | `server/src/games/uno.ts` | `client/src/games/Uno.tsx` |
 
 ### Gartic - what was built this session (COMPLETE)
 Draw-&-guess game. One player draws a secret word on a canvas; everyone else races to guess it in a chat-style feed. Faster guesses score more; the drawer earns a bonus per correct guesser. One lap = each player draws once.
@@ -276,6 +278,15 @@ Draw-&-guess game. One player draws a secret word on a canvas; everyone else rac
 - **Client view** (`Gartic.tsx`, wired into `GamePlay.tsx`): real-time `<canvas>` with normalized 0–1 coords (resolution-independent, dpr-aware, ResizeObserver redraw); drawer toolbar (10 colors, 4 brush sizes, clear); guess input + live feed; scoreboard with drawer/guessed badges; timer bar; reveal banner with host "Next round / See results"; results screen with confetti.
 - **i18n**: `ga.*` + `game.gartic.*` keys added to `client/src/lib/i18n.ts` (EN + FR).
 - **Tests**: `scripts/gartic-test.ts` (19 deterministic checks, all passing), wired into the `test:engine` npm script.
+
+### Uno — what was built this session (COMPLETE)
+Classic shedding card game. Match the discard top by color / number / symbol; action cards skip, reverse, and force draws; wilds recolor the pile. First to empty their hand wins the round.
+- **Server engine** (`uno.ts`): full 108-card deck; deal + opening-card flip (re-draws until a number so no action resolves as the first card); play/draw/pass/callUno/catch/next actions; turn engine with direction, skip, 2-player reverse-as-skip, +2/+4 pending stacks; deck reshuffle from the discard; round scoring (num=face, action=20, wild=50) and optional multi-round match to a points target; **per-player `playerView`** (private hands) plus a server-computed `playableIds` so the client never re-implements the rules. Registered in `registry.ts`.
+- **House-rule settings** (`shared/src/settings.ts` → `UnoSettings`, `UNO_BOUNDS`, `sanitizeUno`): starting hand (5–10), stacking +2/+4, draw-to-match, force-play, Uno-catch penalty, and points target (0 = single round). Host-editable panel in `Lobby.tsx` (`UnoRules` + a new `Toggle` primitive).
+- **Shared types** (`games.ts`, `types.ts`, `index.ts`): `UnoColor`/`UnoCard`/`UnoView`/`UnoAction`, `unoCardPoints`, `UNO_COLORS`; `GameId` += `uno`; `GAMES` meta (2–10 players).
+- **Client view** (`Uno.tsx`, wired into `GamePlay.tsx`): responsive table — opponents with fanned backs + Uno/catch badges, center deck/discard with active-color glow, direction + pending-draw indicators, your hand with playable lift/dim, wild color picker, pulsing UNO! button, catch buttons, event toasts + sounds, round-scoreboard interstitial, and final results with confetti.
+- **i18n**: `uno.*` + `set.uno.*` + `game.uno.*` keys (EN + FR).
+- **Tests**: `scripts/uno-test.ts` (35 deterministic checks) wired into `test:engine`; `scripts/uno-socket.mjs` (9 live checks, private-view leak guard) wired into `test:games`. Both pass.
 
 ### Verification done
 - `npm run typecheck` - clean (server + client).
