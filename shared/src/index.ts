@@ -51,14 +51,18 @@ export type {
 export { bullHeads, LL_VALUES, LL_COUNTS, LL_CARD_ORDER, LL_TOKENS_TO_WIN, SANDBOX_SHAPES, UNO_COLORS, unoCardPoints } from "./games";
 export {
   CHATEAU_CARDS,
+  CHATEAU_SHIELDS,
   CHATEAU_FACEDOWN,
   CHATEAU_START,
   chateauCardById,
+  chateauFamilyCounts,
+  chateauSwitchesMessenger,
 } from "./chateauCards";
 export type {
   ChateauShield,
   ChateauDeck,
   ChateauFx,
+  ChateauPos,
   ChateauScore,
   ChateauCard,
 } from "./chateauCards";

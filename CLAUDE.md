@@ -6,6 +6,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Pebble - a no-signup web app to play party minigames with friends over a shared room code. Server-authoritative Node + Socket.IO backend holding ephemeral in-memory rooms; React + Vite client. See `plan.md` for the product plan and `plan.md §13` for the living build-status log.
 
+## Games
+
+12 games ship today. Each is registered in `server/src/games/registry.ts` (`ENGINES`, keyed by `GameId` from `shared/src/types.ts`), with metadata (emoji, player range, duration, tagline) in the `GAMES` array of `shared/src/types.ts`. Per-game files follow a fixed naming convention: engine `server/src/games/<id>.ts`, view `client/src/games/<Name>.tsx`, engine test `scripts/<id>-test.ts`. In-game rule text for the lobby's "How to play" panel lives under `<prefix>.rule.*` i18n keys (EN+FR).
+
+| Game | `id` | Players | Length | Rules in one breath | Notes |
+|---|---|---|---|---|---|
+| 💣 Bomb Party | `bombparty` | 2–16 | 5–10 min | A bomb passes around; on your turn type any valid dictionary word containing the shown syllable before the fuse blows. Fail → lose a life; last alive wins. | ~275k EN / ~323k FR word `Set`s in `dictionary.ts`; server owns the fuse via `tick()`. Content language per room. |
+| ✏️ Petit Bac | `petitbac` | 2–12 | 8–15 min | A random letter + a list of categories; race to fill one answer per category starting with that letter, then answers are revealed and scored. | Categories localized by room content language; round deadline via `tick()`. |
+| 🐂 6 Qui Prend | `sixquiprend` | 2–10 | 10–20 min | Each turn everyone secretly picks a card; revealed low→high, each joins the row ending just below it; lay the 6th in a row and you take the row's bull-head 🐂 penalties. Fewest bull heads wins. | Hidden hands → `playerView`. |
+| 🕵️ Codenames | `codenames` | 4–8 | 15–25 min | Two teams; each spymaster sees the secret key and gives one-word + number clues so teammates guess their own agents without hitting the assassin. | Spymaster key is secret → `playerView`. |
+| 🃏 Skyjo | `skyjo` | 2–8 | 10–15 min | Face-down 3×4 grid, flip 2 to start; draw or take the discard to swap/flip; a column of three matching cards clears; reveal your grid to end the round (doubled if you weren't lowest). Lowest total wins. | Hidden grids → `playerView`. |
+| 🎨 Gartic | `gartic` | 2–12 | 10–20 min | One player draws the secret word while everyone else races to guess it in chat; points for speed, then the turn rotates. | Strokes ride the dedicated `draw:op`/`draw:sync` side-channel, not `room:state`. |
+| 🎯 Devine 9 | `devine9` | 2–12 | 10–15 min | Two teams, a theme with nine valid answers to shout out — but never say the hidden bomb word. | — |
+| 🔎 Spyfall | `spyfall` | 3–10 | 6–10 min | Everyone shares a secret location except the spy; question and bluff to expose the spy (or, as the spy, guess the place). | Per-player role/location → `playerView`; timed round. |
+| 🎭 Complots | `complots` | 3–6 | 10–15 min | Coup-style. Two hidden role cards (Duke/Assassin/Captain/Contessa) + coins; claim any role's action (bluffing allowed), others may call "Liar!" or block with a counter-claim; lose both influences = out; last standing wins. | Hidden roles → `playerView`; timed challenge window via `tick()`. |
+| 🏰 Château Combo | `chateau` | 2–5 | 15–25 min | Build a 3×3 tableau from two markets gated by the Messenger pawn; each card fires an instant effect on placement and scores end-game combos (blasons, adjacency, purses, positions). Most points wins. | All public (one shared view). Floating x/y tableau, six blason families, per-deck discounts, messenger-switch cards — see `shared/src/chateauCards.ts`. |
+| 💌 Love Letter | `loveletter` | 2–6 | 10–20 min | Hold one secret card; each turn draw a second and play one, resolving its effect (Guard accuses, Baron duels, Prince discards, King trades…); last standing or highest card when the deck empties wins the round; first to the token target wins the match. | Hidden hands → `playerView`. |
+| 🎴 Uno | `uno` | 2–10 | 10–20 min | Match color/number, play action cards (skip/reverse/+2/wild/+4), stack draws, and shout Uno at one card. Empty your hand to score opponents' remaining card points; first past the target wins. | Hidden hands → `playerView`. |
+
+When adding a game, follow the 5-step checklist under **The GameEngine abstraction** below.
+
 ## Commands
 
 ```bash

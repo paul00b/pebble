@@ -565,8 +565,13 @@ export type ComplotsAction =
 
 /* ── Château Combo ───────────────────────────────────────────────────────── */
 
-/** One slot of a player's 3×3 grid. Face-down cards have no identity. */
+/** One placed card on a player's floating tableau. The tableau grows from the
+ *  first card outward; its bounding box never exceeds 3×3. Coordinates are on an
+ *  abstract plane (the first card is at 0,0) - the client crops to the box. */
 export interface ChateauCell {
+  /** Plane coordinates (first card at 0,0; x grows right, y grows down). */
+  x: number;
+  y: number;
   cardId: string | null;
   faceDown: boolean;
   /** Gold stored on this card's purse. */
@@ -577,16 +582,17 @@ export interface ChateauPlayerPublic {
   id: string;
   gold: number;
   keys: number;
-  /** Discount banners collected ([REM -1] effects). */
-  banners: number;
-  /** 9 slots, row-major. */
-  grid: (ChateauCell | null)[];
+  /** Permanent purchase discounts, by deck scope. */
+  discountCastle: number;
+  discountVillage: number;
+  /** Placed cards, in placement order. */
+  cells: ChateauCell[];
   placed: number;
 }
 
 export interface ChateauPlayerScore {
-  /** Points per occupied cell (aligned to the grid, null for empty cells). */
-  cells: (number | null)[];
+  /** Points per placed card, aligned to `ChateauPlayerPublic.cells` order. */
+  cells: number[];
   cardPts: number;
   keyPts: number;
   total: number;
@@ -606,7 +612,8 @@ export interface ChateauView {
   lastEvent: {
     playerId: string;
     cardId: string | null;
-    cell: number;
+    x: number;
+    y: number;
     gold: number;
     keys: number;
     at: number;
@@ -622,9 +629,9 @@ export type ChateauAction =
   | { type: "messenger" }
   /** Spend 1 key to replace the 3 cards of the active row. */
   | { type: "refresh" }
-  /** Buy market card `index` from the active row and place it at `cell`;
+  /** Buy market card `index` from the active row and place it at plane (x,y);
    *  `faceDown` takes it as a free resource card (+6 gold, +2 keys) instead. */
-  | { type: "buy"; index: number; cell: number; faceDown?: boolean };
+  | { type: "buy"; index: number; x: number; y: number; faceDown?: boolean };
 
 /* ── Love Letter (2019 edition, 21 cards, 2-6 players) ──────────────────── */
 
