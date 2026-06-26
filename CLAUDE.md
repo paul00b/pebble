@@ -8,7 +8,7 @@ Pebble - a no-signup web app to play party minigames with friends over a shared 
 
 ## Games
 
-12 games ship today. Each is registered in `server/src/games/registry.ts` (`ENGINES`, keyed by `GameId` from `shared/src/types.ts`), with metadata (emoji, player range, duration, tagline) in the `GAMES` array of `shared/src/types.ts`. Per-game files follow a fixed naming convention: engine `server/src/games/<id>.ts`, view `client/src/games/<Name>.tsx`, engine test `scripts/<id>-test.ts`. In-game rule text for the lobby's "How to play" panel lives under `<prefix>.rule.*` i18n keys (EN+FR).
+13 games ship today. Each is registered in `server/src/games/registry.ts` (`ENGINES`, keyed by `GameId` from `shared/src/types.ts`), with metadata (emoji, player range, duration, tagline) in the `GAMES` array of `shared/src/types.ts`. Per-game files follow a fixed naming convention: engine `server/src/games/<id>.ts`, view `client/src/games/<Name>.tsx`, engine test `scripts/<id>-test.ts`. In-game rule text for the lobby's "How to play" panel lives under `<prefix>.rule.*` i18n keys (EN+FR).
 
 | Game | `id` | Players | Length | Rules in one breath | Notes |
 |---|---|---|---|---|---|
@@ -24,6 +24,7 @@ Pebble - a no-signup web app to play party minigames with friends over a shared 
 | 🏰 Château Combo | `chateau` | 2–5 | 15–25 min | Build a 3×3 tableau from two markets gated by the Messenger pawn; each card fires an instant effect on placement and scores end-game combos (blasons, adjacency, purses, positions). Most points wins. | All public (one shared view). Floating x/y tableau, six blason families, per-deck discounts, messenger-switch cards — see `shared/src/chateauCards.ts`. |
 | 💌 Love Letter | `loveletter` | 2–6 | 10–20 min | Hold one secret card; each turn draw a second and play one, resolving its effect (Guard accuses, Baron duels, Prince discards, King trades…); last standing or highest card when the deck empties wins the round; first to the token target wins the match. | Hidden hands → `playerView`. |
 | 🎴 Uno | `uno` | 2–10 | 10–20 min | Match color/number, play action cards (skip/reverse/+2/wild/+4), stack draws, and shout Uno at one card. Empty your hand to score opponents' remaining card points; first past the target wins. | Hidden hands → `playerView`. |
+| 🐱 Exploding Kittens | `exploding` | 2–5 | 10–15 min | Play cards then draw to end your turn; draw an Exploding Kitten and you're out unless you Defuse it (then secretly reinsert it). Attack/Skip/Favor/Shuffle/See-the-Future/Cat-combos bend the game, and almost anything can be Noped. Last player standing wins. | Hidden hands → `playerView`; tick-driven Nope window, favor-give and kitten-insert deadlines. |
 
 When adding a game, follow the 5-step checklist under **The GameEngine abstraction** below.
 

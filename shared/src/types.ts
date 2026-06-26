@@ -17,7 +17,8 @@ export type GameId =
   | "complots"
   | "chateau"
   | "loveletter"
-  | "uno";
+  | "uno"
+  | "exploding";
 
 /** High-level phase of a room. */
 export type RoomPhase = "lobby" | "playing" | "results";
@@ -191,6 +192,15 @@ export const GAMES: GameMeta[] = [
     minPlayers: 2,
     maxPlayers: 10,
     duration: "10–20 min",
+  },
+  {
+    id: "exploding",
+    name: "Exploding Kittens",
+    tagline: "Draw cards, dodge the kitten — defuse it or you're out.",
+    emoji: "🐱",
+    minPlayers: 2,
+    maxPlayers: 5,
+    duration: "10–15 min",
   },
 ];
 

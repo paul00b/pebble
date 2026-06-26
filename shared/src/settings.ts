@@ -136,6 +136,7 @@ export interface AllSettings {
   chateau: Record<string, never>;
   loveletter: Record<string, never>;
   uno: UnoSettings;
+  exploding: Record<string, never>;
 }
 
 export const DEFAULT_SETTINGS: AllSettings = {
@@ -165,6 +166,7 @@ export const DEFAULT_SETTINGS: AllSettings = {
     unoPenalty: 2,
     scoreTarget: 0,
   },
+  exploding: {},
 };
 
 /** Editable ranges, shared by the client UI and server validation. */

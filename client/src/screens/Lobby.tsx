@@ -459,6 +459,8 @@ function GameRules({ room, isHost }: { room: RoomState; isHost: boolean }) {
         <RulesList prefix="sixqp" steps={["pick", "place", "sixth", "low", "win"]} />
       ) : room.selectedGame === "skyjo" ? (
         <RulesList prefix="sk" steps={["grid", "turn", "column", "close", "win"]} />
+      ) : room.selectedGame === "exploding" ? (
+        <RulesList prefix="ek" steps={["goal", "turn", "draw", "defuse", "cards", "nope"]} />
       ) : (
         <p className="text-sm text-faint">{t("lobby.noRules")}</p>
       )}

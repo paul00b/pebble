@@ -825,6 +825,100 @@ export type UnoAction =
   /** Start the next round (host) after a round's scoreboard. */
   | { type: "next" };
 
+/* ── Exploding Kittens ───────────────────────────────────────────────────── */
+
+export type ExplodingCard =
+  | "ek"        // Exploding Kitten
+  | "defuse"
+  | "attack"
+  | "skip"
+  | "favor"
+  | "shuffle"
+  | "future"    // See the Future
+  | "nope"
+  // five interchangeable cat cards (no solo effect; combine to steal)
+  | "tacocat"
+  | "cattermelon"
+  | "potatocat"
+  | "beardcat"
+  | "rainbowcat";
+
+export type ExplodingPhase = "play" | "react" | "favor" | "insert" | "over";
+
+export interface ExplodingPlayerPublic {
+  id: string;
+  handCount: number;
+  alive: boolean;
+  /** True once this player drew an Exploding Kitten with no Defuse. */
+  exploded: boolean;
+}
+
+export interface ExplodingPending {
+  /** The card play awaiting Nope resolution. */
+  kind: "attack" | "skip" | "favor" | "shuffle" | "future" | "pair" | "triple";
+  actorId: string;
+  targetId: string | null;
+  /** For a triple: the card type the actor demands. */
+  named: ExplodingCard | null;
+  /** Nopes stacked so far (odd = currently negated). */
+  nopes: number;
+}
+
+export interface ExplodingEvent {
+  type:
+    | "play" | "noped" | "drew" | "defused" | "exploded"
+    | "favorGiven" | "stole" | "shuffled" | "attacked" | "skipped" | "future";
+  actorId: string;
+  targetId?: string | null;
+  card?: ExplodingCard | null;
+  /** Generic count (e.g. turns forced by an Attack). */
+  n?: number;
+  at: number;
+}
+
+export interface ExplodingView {
+  kind: "exploding";
+  phase: ExplodingPhase;
+  players: ExplodingPlayerPublic[];
+  currentId: string;
+  /** Turns the current player still owes (1 normally, more under Attack). */
+  turnsLeft: number;
+  deckCount: number;
+  /** Top of the discard pile, for display. */
+  discardTop: ExplodingCard | null;
+  /** Your hand (per-player view only). */
+  youHand: ExplodingCard[];
+  pending: ExplodingPending | null;
+  /** Reaction / sub-step countdown (epoch ms) and its full length. */
+  deadline: number;
+  duration: number;
+  /** You may play a Nope right now. */
+  youCanNope: boolean;
+  /** While a Favor is owed: who must give, and whether it's you. */
+  favorGiverId: string | null;
+  youMustGive: boolean;
+  /** While an Exploding Kitten must be reinserted into the deck. */
+  inserterId: string | null;
+  youMustInsert: boolean;
+  /** See-the-Future peek - present only in the peeker's own view (top first). */
+  future: ExplodingCard[] | null;
+  lastEvent: ExplodingEvent | null;
+  winnerId: string | null;
+  over: boolean;
+}
+
+export type ExplodingAction =
+  /** Play a card: a solo action card, or a `pair`/`triple` of matching cats. */
+  | { type: "play"; card: ExplodingCard; combo?: "single" | "pair" | "triple"; target?: string; named?: ExplodingCard }
+  /** Draw the top card to end your turn. */
+  | { type: "draw" }
+  /** Play a Nope during a reaction window. */
+  | { type: "nope" }
+  /** Give a card to the favor-asker (favor phase). */
+  | { type: "give"; index: number }
+  /** Reinsert a defused Exploding Kitten at `index` from the top (insert phase). */
+  | { type: "insert"; index: number };
+
 /* ── Unions ──────────────────────────────────────────────────────────────── */
 
 export type GameView =
@@ -839,7 +933,8 @@ export type GameView =
   | ComplotsView
   | ChateauView
   | LoveLetterView
-  | UnoView;
+  | UnoView
+  | ExplodingView;
 export type GameAction =
   | BombPartyAction
   | PetitBacAction
@@ -852,4 +947,5 @@ export type GameAction =
   | ComplotsAction
   | ChateauAction
   | LoveLetterAction
-  | UnoAction;
+  | UnoAction
+  | ExplodingAction;

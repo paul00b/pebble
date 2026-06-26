@@ -11,6 +11,7 @@ import { Complots } from "./Complots";
 import { Chateau } from "./Chateau";
 import { LoveLetter } from "./LoveLetter";
 import { Uno } from "./Uno";
+import { Exploding } from "./Exploding";
 import { useStore } from "@/lib/store";
 import { gameById, type RoomState } from "@shared";
 
@@ -36,6 +37,7 @@ export function GamePlay({ room, onLeave }: { room: RoomState; onLeave: () => vo
       {room.game?.kind === "chateau" && <Chateau room={room} />}
       {room.game?.kind === "loveletter" && <LoveLetter room={room} />}
       {room.game?.kind === "uno" && <Uno room={room} />}
+      {room.game?.kind === "exploding" && <Exploding room={room} />}
       {!room.game && (
         <div className="grid flex-1 place-items-center text-mist">Loading game…</div>
       )}
